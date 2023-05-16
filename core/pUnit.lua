@@ -13,6 +13,10 @@ local pcall = pcall
 local loadfile = loadfile
 local type = type
 local error = error
+local pairs = pairs
+local setmetatable = setmetatable
+local unpack = unpack
+local setfenv = setfenv
 
 --[[------
  --Callback action

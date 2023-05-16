@@ -11,6 +11,7 @@ local tinsert = table.insert
 local loadfile = loadfile
 local pcall = pcall
 local error = error
+local tonumber = tonumber
 local flightAssistantConfig = ...
 local config = (flightAssistantConfig and type(flightAssistantConfig) == 'table') and flightAssistantConfig or nil
 local isReloadUserScriptsOnMissionLoad = not config or config.reloadUserScriptsOnMissionLoad
@@ -22,6 +23,7 @@ local lERROR = log.ERROR
 local LoGetSelfData = Export.LoGetSelfData
 local LoIsOwnshipExportAllowed = Export.LoIsOwnshipExportAllowed
 local setfenv = setfenv
+local unpack = unpack
 
 local function clearTable(table)
     if type(table) == 'table' then
