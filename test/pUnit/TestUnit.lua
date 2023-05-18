@@ -28,3 +28,6 @@ onSimulationFrame(function()
     end
 end)
 
+if unitConfig.setupOnCommandTest then
+    onCommand(52, 1003, 1, 1, function() checkEvent("Command 52-1003 !"); end)
+end

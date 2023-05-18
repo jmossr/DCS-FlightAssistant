@@ -13,12 +13,14 @@ return { test = function()
 
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationFrame').andReturn('onFlagValue("A", "2", function() checkEvent("A = 2 !"); end)')
+    expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("A")))').andReturn(nil, '0')
     fireUserCallback('onSimulationFrame')
     checkEvents('B')
 
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("A")))').andReturn(nil, '1')
     expect('onSimulationFrame').andReturn('onFlagValue("B", 4, function() checkEvent("B = 4 !"); end)')
+    expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("B")))').andReturn(nil, '0')
     fireUserCallback('onSimulationFrame')
     checkEvents('C')
 

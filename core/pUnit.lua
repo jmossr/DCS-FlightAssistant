@@ -126,6 +126,7 @@ local function tryLoadPUnit(fa, name, initPUnitExtensions)
 
             isSimulationPaused = fa.isSimulationPaused,
             flightAssistantName = faname,
+            unitConfig = fa.pUnitConfig,
         }
         pUnit.proxy = proxy
         if type(initPUnitExtensions) == 'table' then
@@ -136,7 +137,9 @@ local function tryLoadPUnit(fa, name, initPUnitExtensions)
 
         setmetatable(proxy, { __index = _G })
         setfenv(f, proxy)
+        pUnit.init = true
         local ran, merr = pcall(f, name, faname)
+        pUnit.init = false
         if ran then
             if isDebugEnabled then
                 fmtInfo('[%s] PUnit %s loaded', faname, name)

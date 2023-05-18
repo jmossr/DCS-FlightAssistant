@@ -361,7 +361,8 @@ local function setupFlightAssistant(faName, configTable)
         pUnits = {},
         isSimulationPaused = isSimulationPaused,
         reloadOnMissionLoad = configTable.reloadOnMissionLoad,
-        debugUnit = isDebugEnabled or isDebugUnitEnabled or configTable.debugUnit and true or false
+        debugUnit = isDebugEnabled or isDebugUnitEnabled or configTable.debugUnit and true or false,
+        pUnitConfig = configTable.unitConfig or {}
     }
 
     callExtensionFunctions(INIT_FLIGHTASSISTANT, faSelf, configTable)

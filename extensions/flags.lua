@@ -5,6 +5,7 @@
 local tinsert = table.insert
 local tostring = tostring
 local tonumber = tonumber
+local pairs = pairs
 local flightAssistant = ...
 local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
 local getOptionalExtension = flightAssistant.getOptionalExtension
@@ -22,6 +23,30 @@ local getUserFlag = dcsLib.getUserFlag
 local setUserFlag = dcsLib.setUserFlag
 local startListenCommand = dcsLib.startListenCommand
 
+local function activateFlagInspector(inspector)
+    if inspector.disabled then
+        inspector.disabled = nil
+        inspector.lastValue = getUserFlag(inspector.flag)
+    end
+end
+local function activateInitialFlagInspectors(pUnit)
+    local inspectors = pUnit.flagInspectors
+    local n = #inspectors
+    local inspector
+    for i = 1, n do
+        inspector = inspectors[i]
+        if inspector.initial then
+            activateFlagInspector(inspector)
+        end
+    end
+end
+local function deactivateFlagInspectors(pUnit)
+    local inspectors = pUnit.flagInspectors
+    local n = #inspectors
+    for i = 1, n do
+        inspectors[i].disabled = true
+    end
+end
 local function checkFlags(pUnit)
     local inspectors = pUnit.flagInspectors
     local n = #inspectors
@@ -29,12 +54,14 @@ local function checkFlags(pUnit)
     local oldValue
     for i = 1, n do
         inspector = inspectors[i]
-        local flag = inspector.flag
-        local newValue = getUserFlag(flag)
-        if newValue ~= inspector.lastValue then
-            oldValue = inspector.lastValue
-            inspector.lastValue = newValue
-            fire(inspector.observers, newValue, oldValue, flag)
+        if not inspector.disabled then
+            local flag = inspector.flag
+            local newValue = getUserFlag(flag)
+            if newValue ~= inspector.lastValue then
+                oldValue = inspector.lastValue
+                inspector.lastValue = newValue
+                fire(inspector.observers, newValue, oldValue, flag)
+            end
         end
     end
 end
@@ -47,10 +74,11 @@ local function getOrCreateFlagInspector(pUnit, flag)
     for i = 1, n do
         inspector = inspectors[i]
         if inspector.flag == flagName then
+            activateFlagInspector(inspector)
             return inspector
         end
     end
-    inspector = { pUnit = pUnit, name = 'flagInspector \'' .. flag .. '\'', flag = flagName, lastValue = '0', observers = {} }
+    inspector = { pUnit = pUnit, name = 'flagInspector \'' .. flag .. '\'', flag = flagName, lastValue = getUserFlag(flag), observers = {}, initial = pUnit.init }
     tinsert(inspectors, inspector)
     return inspector
 end
@@ -61,6 +89,13 @@ local function flagInspectorAccessor(pUnit, flag)
     end
 end
 
+local function activateOnCommandTrigger(pUnit, trigger)
+    if trigger.disabled then
+        trigger.disabled = nil
+        getOrCreateFlagInspector(pUnit, trigger.flag) --activate flag inspector
+        startListenCommand(trigger.deviceId, trigger.commandId, trigger.flag, trigger.minValue, trigger.maxValue)
+    end
+end
 local function fireOnCommandAction(self, newValue)
     if not self.disabled and tonumber(newValue) ~= 0 then
         setUserFlag(self.flag, 0)
@@ -75,12 +110,15 @@ local function getOrCreateOnCommandTrigger(pUnit, deviceId, commandId, minValue,
     local id = 'onCommand(' .. deviceId .. ', ' .. commandId .. ', ' .. min .. ', ' .. max .. ')'
     local commandTriggers = pUnit.commandTriggers
     local trigger = commandTriggers[id]
-    if not trigger then
+    if trigger then
+        activateOnCommandTrigger(pUnit, trigger)
+    else
         onCommandTriggerCount = onCommandTriggerCount + 1
         local flag = 'OCF1429-' .. onCommandTriggerCount
         trigger = { pUnit = pUnit, name = id, flag = flag,
                     deviceId = deviceId, commandId = commandId, minValue = min, maxValue = max,
-                    fire = fireOnCommandAction, observers = {} }
+                    fire = fireOnCommandAction, observers = {}, initial = pUnit.init }
+        commandTriggers[id] = trigger
         tinsert(getOrCreateFlagInspector(pUnit, flag).observers, trigger)
         startListenCommand(deviceId, commandId, flag, min, max, 1)
     end
@@ -91,7 +129,18 @@ local function onCommandTriggerAccessor(pUnit, deviceId, commandId, minValue, ma
         return getOrCreateOnCommandTrigger(pUnit, deviceId, commandId, minValue, maxValue)
     end
 end
-
+local function activateInitialOnCommandTriggers(pUnit)
+    for _, trigger in pairs(pUnit.commandTriggers) do
+        if trigger.initial then
+            activateOnCommandTrigger(pUnit, trigger)
+        end
+    end
+end
+local function deactivateOnCommandTriggers(pUnit)
+    for _, trigger in pairs(pUnit.commandTriggers) do
+        trigger.disabled = true
+    end
+end
 local function onFlagValue(pUnit, flag, value, f)
     return addOnValueAction(flagInspectorAccessor(pUnit, flag), getOrCreateCallbackAction(pUnit, 'callback ' .. tostring(f), f), value)
 end
@@ -194,7 +243,7 @@ local function initPUnit(pUnit, proxy)
         proxy.onFlagValueChanged = function(flag, f)
             return uonFlagValueChanged(pUnit, flag, f)
         end
-        proxy.onFlagValue = function (flag, value, f)
+        proxy.onFlagValue = function(flag, value, f)
             return uonFlagValue(pUnit, flag, value, f)
         end
         proxy.onFlagValueBetween = function(flag, minValue, maxValue, f)
@@ -209,7 +258,17 @@ local function initPUnit(pUnit, proxy)
     end
 end
 
+local function beforeUnitActivation(pUnit)
+    activateInitialFlagInspectors(pUnit)
+    activateInitialOnCommandTriggers(pUnit)
+end
+local function afterUnitDeactivation(pUnit)
+    deactivateFlagInspectors(pUnit)
+    deactivateOnCommandTriggers(pUnit)
+end
 return {
     initPUnit = initPUnit,
+    beforePUnitActivation = beforeUnitActivation,
+    afterPUnitDeactivation = afterUnitDeactivation,
     beforeSimulationFrame = checkFlags,
 }

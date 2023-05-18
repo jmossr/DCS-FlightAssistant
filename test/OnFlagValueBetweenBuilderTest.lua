@@ -13,12 +13,14 @@ return { test = function()
 
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationFrame').andReturn('onFlag("A").valueBetween(2, 4).call(function() checkEvent("2 <= A <= 4 !"); end)')
+    expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("A")))').andReturn(nil, '0')
     fireUserCallback('onSimulationFrame')
     checkEvents('B')
 
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("A")))').andReturn(nil, '1')
     expect('onSimulationFrame').andReturn('onFlag("B").valueBetween(-1, 1).call(function(newval, oldval, flg) checkEvent(tostring(flg) .. ": " .. tostring(oldval) .. " -> " .. tostring(newval)); end)')
+    expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("B")))').andReturn(nil, '0')
     fireUserCallback('onSimulationFrame')
     checkEvents('C')
 

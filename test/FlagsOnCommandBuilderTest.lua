@@ -13,6 +13,7 @@ return { test = function()
 
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationFrame').andReturn('onCommand(25, 3001, 2, 3).call(function() checkEvent("Command 25-3001 !"); end)')
+    expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("OCF1429-1")))').andReturn(nil, '0')
     expect('dostring_in(server, a_start_listen_command(3001, "OCF1429-1", 1, 2, 3, 25))').andReturn(nil, true)
     fireUserCallback('onSimulationFrame')
     checkEvents('B')
@@ -54,6 +55,7 @@ return { test = function()
     if config.debug then
         expect('builder registered: onCommand(25, 3001')
     end
+    expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("OCF1429-1")))').andReturn(nil, '0')
     expect('dostring_in(server, a_start_listen_command(3001, "OCF1429-1", 1, 1, 10000, 25))').andReturn(nil, true)
     if config.debug then
         expect('Listening to device 25, command 3001')

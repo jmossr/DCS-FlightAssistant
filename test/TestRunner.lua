@@ -4,13 +4,14 @@ local flightAssistantScriptFile = flightAssistantScriptDir .. 'FlightAssistant.l
 local extensionsDir = baseDir .. 'extensions\\'
 local playerUnitScriptsDir = baseDir .. 'test\\pUnit\\'
 
-function initFlightAssistantTestConfig(config, reload)
+function initFlightAssistantTestConfig(config, reload, unitConfig)
     config.flightAssistantScriptFile = flightAssistantScriptFile
     config.extensionsDir = extensionsDir
     config.playerUnitScriptsDir = playerUnitScriptsDir
     config.flightAssistants = {
         Test = {
             reloadOnMissionLoad = reload or false,
+            unitConfig = unitConfig,
         },
     }
 end
@@ -239,6 +240,7 @@ local testCases = {
     'DCSCallsOnDeviceArgumentBuilderTest',
     'SchedulerTest',
     'SchedulerBuilderTest',
+    'FlagsOnCommandSurvivesMissionLoadTest',
 }
 local skip = {
     --SchedulerTest = true,

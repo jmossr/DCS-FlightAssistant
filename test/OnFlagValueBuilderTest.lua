@@ -13,6 +13,7 @@ return { test = function()
 
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationFrame').andReturn('onFlag("A").value("2").call(function() checkEvent("A = 2 !"); end)')
+    expect('dostring_in(server, return tostring(trigger.misc.getUserFlag("A")))').andReturn(nil, '0')
     fireUserCallback('onSimulationFrame')
     checkEvents('B')
 
