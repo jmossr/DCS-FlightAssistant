@@ -383,6 +383,22 @@ if builderLib then
         return builder:build()
     end
 
+   --[[------
+        -- textToOwnShip action builder extension
+    ------]]--
+    local buildWithTxtToOwnShipAction = function(builder, text, displayTime, clearView)
+        local actionId = 'textToOwnShip(' ..  text .. ')'
+        local pUnit = builder.pUnit
+        local pUnitProxy = pUnit.proxy
+        builder.actionId = actionId
+        builder.buildActionCb = function()
+            return { pUnit = pUnit, name = actionId, fire = function()
+                pUnitProxy.textToOwnShip(text, displayTime, clearView);
+            end }
+        end
+        return builder:build()
+    end
+
     --[[------
         -- install action builder extensions
     ------]]--
@@ -405,9 +421,14 @@ if builderLib then
                 buildWithTxtForUnitAction(builder, unitId, text, displayTime, clearView)
             end
             proxy.outText = function(text, displayTime, clearView)
-                checkArgType('outTextForUnit(unitId, text, displayTime, clearView)', 'text', text, 'string', true, 2)
-                checkPositiveNumberArg('outTextForUnit(unitId, text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                checkArgType('outText(text, displayTime, clearView)', 'text', text, 'string', true, 2)
+                checkPositiveNumberArg('outText(text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
                 buildWithTxtAction(builder, text, displayTime, clearView)
+            end
+            proxy.textToOwnShip = function(text, displayTime, clearView)
+                checkArgType('textToOwnShip(text, displayTime, clearView)', 'text', text, 'string', true, 2)
+                checkPositiveNumberArg('textToOwnShip(text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                buildWithTxtToOwnShipAction(builder, text, displayTime, clearView)
             end
         end
     else
@@ -423,6 +444,9 @@ if builderLib then
             end
             proxy.outText = function(text, displayTime, clearView)
                 buildWithTxtAction(builder, text, displayTime, clearView)
+            end
+            proxy.textToOwnShip = function(text, displayTime, clearView)
+                buildWithTxtToOwnShipAction(builder, text, displayTime, clearView)
             end
         end
     end
@@ -491,9 +515,14 @@ local function initPUnit(pUnit, proxy)
     end
 end
 
+local function unitDeactivated(pUnit)
+    pUnit.playerUnitID = nil
+end
+
 local export = {
     initPUnit = initPUnit,
     beforeSimulationFrame = checkDeviceArgumentInspectors,
+    afterPUnitDeactivation = unitDeactivated,
 }
 copyAll(proxyExtension, export)
 

@@ -47,6 +47,7 @@ return { test = function()
     fireUserCallback('onSimulationFrame')
     checkEvents('H')
 
+    expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationResume')
     expect('Inserted event on resume')
     fireUserCallback('onSimulationResume')

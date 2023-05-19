@@ -30,6 +30,7 @@ return { test = function()
     fireUserCallback('onSimulationFrame')
     checkEvents('D')
 
+    expect('Export.LoGetSelfData').andReturn(nil)
     fireUserCallback('onSimulationResume')
     checkEvents('F')
 

@@ -33,6 +33,7 @@ return { test = function()
     assert(not scheduled.isScheduled())
     checkScheduledActionCount(selfData, 0)
 
+    expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationResume')
     local startTime = os.clock()
     fireUserCallback('onSimulationResume')

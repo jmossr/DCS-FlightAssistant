@@ -82,6 +82,9 @@ do
         end,
         onSimulationResume = function(_)
             simulationPaused = false
+            if simulationActive then
+                currentPUnitData = LoGetSelfData()
+            end
             executeCallbacks('onSimulationResume');
         end
     })
@@ -457,6 +460,7 @@ local function setupFlightAssistant(faName, configTable)
     end
 
     function onSimulationResume()
+        tryActivatePUnit()
         fireSimCallback(activePUnit, 'onSimulationResume')
     end
 

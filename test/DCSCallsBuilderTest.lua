@@ -26,6 +26,7 @@ return { test = function()
     fireUserCallback('onSimulationPause')
     checkEvents('D')
 
+    expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationResume')
     expect('dostring_in(server, trigger.action.setUserFlag("7", 42))').andReturn(nil, true)
     fireUserCallback('onSimulationResume')

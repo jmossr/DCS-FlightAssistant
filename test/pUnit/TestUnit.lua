@@ -31,3 +31,6 @@ end)
 if unitConfig.setupOnCommandTest then
     onCommand(52, 1003, 1, 1, function() checkEvent("Command 52-1003 !"); end)
 end
+if unitConfig.setupTextToOwnShipActionBuilderTest then
+    onSimulationResume().textToOwnShip('Simulation resumed', 2.3)
+end
