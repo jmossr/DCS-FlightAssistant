@@ -56,10 +56,22 @@
         </copy>
     </target>
 
+    <filterchain id="extensions.pattern.filter">
+        <tokenfilter>
+            <stringtokenizer delims=" '" suppressdelims="true"/>
+            <replaceregex pattern="([^,]+)" replace="\1.lua"/>
+        </tokenfilter>
+    </filterchain>
+
     <target name="copyextensions" depends="initbuild">
+        <property name="fa.extensions" value="'builder', 'DCS-calls'"/>
+        <loadresource property="extensions.includes">
+            <propertyresource name="fa.extensions"/>
+            <filterchain refid="extensions.pattern.filter"/>
+        </loadresource>
         <mkdir dir="${flightassistantdir}/extensions"/>
         <copy todir="${flightassistantdir}/extensions">
-            <fileset dir="${extensionsdir}"/>
+            <fileset dir="${extensionsdir}" includes="${extensions.includes}"/>
         </copy>
     </target>
 
@@ -96,7 +108,9 @@
         <property name="fa.reload.unit" value="true"/>
 
         <antcall target="copycore"/>
-        <antcall target="copyextensions"/>
+        <antcall target="copyextensions">
+            <param name="fa.extensions" value="${fa.extensions}"/>
+        </antcall>
         <antcall target="copyhook">
             <param name="fa.debug" value="${fa.debug}"/>
             <param name="fa.name" value="${fa.name}"/>
