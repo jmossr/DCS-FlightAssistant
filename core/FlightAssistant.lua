@@ -147,7 +147,11 @@ local function printTable(name, t)
         fmtInfo("Table not found: %s = nil", name)
     end
 end
-
+local function copyAll(src, dest)
+    for k, v in pairs(src) do
+        dest[k] = v
+    end
+end
 local function getTrimmedTableId(t)
     return tostring(t):match(":%s*0*([%dABCDEFabcdef]+)")
 end
@@ -242,7 +246,7 @@ end
 local libs = {}
 local libArgs = { fmtInfo = fmtInfo, fmtWarning = fmtWarning, fmtError = fmtError,
                   NOOP = NOOP, indexOf = indexOf, listAddOnce = listAddOnce, printTable = printTable, clearTable = clearTable,
-                  getTrimmedTableId = getTrimmedTableId,
+                  copyAll = copyAll, getTrimmedTableId = getTrimmedTableId,
                   checkArgType = checkArgType, checkStringOrNumberArg = checkStringOrNumberArg, checkPositiveNumberArg = checkPositiveNumberArg,
                   addAction = addAction, addOnValueChangedAction = addOnValueChangedAction,
                   addOnValueAction = addOnValueAction, addOnValueBetweenAction = addOnValueBetweenAction, fire = fire,

@@ -93,11 +93,10 @@
                         executes an action every time a device argument value enters the given range
 
 --------]=]
-local type = type
 local pairs = pairs
 local error = error
 local flightAssistant = ...
-local fmtWarning = type(flightAssistant) == 'table' and flightAssistant.fmtWarning
+local fmtWarning = flightAssistant.fmtWarning
 local fmtInfo = fmtWarning and flightAssistant.fmtInfo
 local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
 local dostring_in = net.dostring_in
@@ -107,6 +106,7 @@ local fire = flightAssistant.fire
 local checkArgType = flightAssistant.checkArgType
 local checkStringOrNumberArg = flightAssistant.checkStringOrNumberArg
 local checkPositiveNumberArg = flightAssistant.checkPositiveNumberArg
+local copyAll = flightAssistant.copyAll
 
 local function executeLuaIn(env, lua)
     local ret, success = dostring_in(env, lua)
@@ -474,12 +474,6 @@ local proxyExtension = {
     outText = poutText or outText,
     getDeviceArgumentValue = pgetDeviceArgumentValue or getDeviceArgumentValue,
 }
-
-local function copyAll(src, dest)
-    for k, v in pairs(src) do
-        dest[k] = v
-    end
-end
 
 local function initPUnit(pUnit, proxy)
     if not pUnit.deviceInspectors then
