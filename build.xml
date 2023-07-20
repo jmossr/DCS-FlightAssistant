@@ -126,4 +126,9 @@
             <fileset dir="${builddir}"/>
         </copy>
     </target>
+
+    <target name="cleandeploydir">
+        <deltree dir="${deploydir}/FlightAssistant"/>
+        <delete file="${deploydir}/Hooks/FlightAssistantLoader.lua"/>
+    </target>
 </project>
