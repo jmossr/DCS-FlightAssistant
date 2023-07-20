@@ -23,7 +23,8 @@
             an error message if execution failed, result will be nil in that case
 
     --
-    getPlayerUnitID() : tries to fetch the player's unit id
+    getMissionPlayerUnitID() : tries to fetch the player's unit id in context 'mission' or 'server'
+        This is different from the player's unit id in this context, where FlightAssistant is running.
         returns : result, errorMsg
 
     --
@@ -61,7 +62,7 @@
 
     --
     outTextForUnit(unitId, text, displayTime [, clearView]) : shows a text message to a specific unit
-        unitId  : unit identification number
+        unitId  : unit identification number in context 'mission'
         text    : text to display
         displayTime : duration in seconds the text should stay visible
         clearView : true to clear the screen of any previous messages before showing this message; default false
@@ -148,9 +149,13 @@ if isDebugUnitEnabled then
 end
 
 --[[
+    Returns the player's unit id in context 'mission'. This id is required
+    to send text messages to the player (unit).
+
     Only works when a player unit is active
+    Only works in single player
 --]]
-local function getPlayerUnitID()
+local function getMissionPlayerUnitID()
     return executeLuaInServerOrMissionEnv('do local unit = world.getPlayer(); return unit and unit:getID() or nil; end')
 end
 
@@ -477,19 +482,22 @@ local proxyExtension = {
 
 local function initPUnit(pUnit, proxy)
     if not pUnit.deviceInspectors then
-        local getPUnitID = function()
-            local id = pUnit.playerUnitID
+        local getMissionPUnitID = function()
+            local id = pUnit.missionPlayerUnitID
             if not id then
-                id = getPlayerUnitID()
-                pUnit.playerUnitID = id
+                id = getMissionPlayerUnitID()
+                pUnit.missionPlayerUnitID = id
             end
             return id
         end
         pUnit.deviceInspectors = {}
         copyAll(proxyExtension, proxy)
-        proxy.getPlayerUnitID = getPUnitID
+        proxy.getMissionPlayerUnitID = getMissionPUnitID
         proxy.textToOwnShip = function (text, displayTime, clearView)
-            outTextForUnit(getPUnitID(), text, displayTime, clearView)
+            local id = getMissionPUnitID()
+            if id then
+                outTextForUnit(id, text, displayTime, clearView)
+            end
         end
         if builderLib then
             local createValueInspectionBuilder = builderLib.createValueInspectionBuilder
@@ -510,7 +518,7 @@ local function initPUnit(pUnit, proxy)
 end
 
 local function unitDeactivated(pUnit)
-    pUnit.playerUnitID = nil
+    pUnit.missionPlayerUnitID = nil
 end
 
 local export = {
