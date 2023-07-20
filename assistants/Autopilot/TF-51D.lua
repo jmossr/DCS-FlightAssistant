@@ -44,8 +44,8 @@ onSignalSequence('A/P_ATT').call(function()
         setPitchTarget(0.05)
         setAltitudeTarget(selfData.Position.y)
         autopilotMode = 'A/P_ATT'
-        textToOwnShip('A/P LVL BNK')
         autopilotEngage()
+        textToOwnShip('A/P LVL BNK')
     end
 end)
 onSignalSequence('A/P_LVL').call(function()
@@ -54,8 +54,8 @@ onSignalSequence('A/P_LVL').call(function()
         setPitchTarget(0.05)
         setAltitudeTarget(selfData.Position.y)
         autopilotMode = 'A/P_LVL'
-        textToOwnShip('A/P LVL')
         autopilotEngage()
+        textToOwnShip('A/P LVL')
     end
 end)
 onSignalSequence('A/P_OFF').call(disengage)
