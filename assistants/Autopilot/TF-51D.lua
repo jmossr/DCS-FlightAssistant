@@ -32,9 +32,12 @@ local autopilotIsEngaged = autopilot.isEngaged
 
 local autopilotMode
 local disengage = function()
+    local engaged = autopilotIsEngaged()
     autopilotMode = nil
     autopilotDisengage()
-    textToOwnShip('A/P OFF')
+    if engaged then
+        textToOwnShip('A/P OFF')
+    end
 end
 
 onSignalSequence('A/P_ATT').call(function()
