@@ -12,17 +12,31 @@
     <property name="hookdir" location="${basedir}/hook"/>
     <property name="assistantsdir" location="${basedir}/assistants"/>
     <property name="builddir" location="${basedir}/../build"/>
-    <property name="flightassistantdir" location="${builddir}/FlightAssistant"/>
+    <property name="flightassitantdirname" value="FlightAssistant"/>
+    <property name="flightassistantdestdir" location="${builddir}/${flightassitantdirname}"/>
     <property name="hooksdestdir" location="${builddir}/Hooks"/>
     <property name="deploydir" location="${user.home}/Saved Games/DCS/Scripts"/>
 
     <property name="autopilot.extensions" value="'builder', 'DCS-calls', 'signals', 'PDi', 'autopilot'"/>
 
-    <target name="deployAutopilot" description="deploy Autopilot">
+    <target name="buildAutopilot" description="build Autopilot">
         <antcall target="build">
             <param name="fa.name" value="Autopilot"/>
             <param name="fa.extensions" value="${autopilot.extensions}"/>
         </antcall>
+    </target>
+
+    <target name="buildAutopilot release version" depends="clearbuild">
+        <antcall target="buildAutopilot">
+            <param name="fa.debug" value="false"/>
+            <param name="fa.debug.unit" value="false"/>
+            <param name="fa.reload.user.scripts" value="false"/>
+            <param name="fa.reload.unit" value="false"/>
+        </antcall>
+    </target>
+
+    <target name="deployAutopilot" description="deploy Autopilot">
+        <antcall target="buildAutopilot"/>
         <antcall target="deploy"/>
     </target>
 
@@ -32,13 +46,9 @@
         </antcall>
     </target>
 
-    <target name="deployAutopilot release version">
-        <antcall target="deployAutopilot">
-            <param name="fa.debug" value="false"/>
-            <param name="fa.debug.unit" value="false"/>
-            <param name="fa.reload.user.scripts" value="false"/>
-            <param name="fa.reload.unit" value="false"/>
-        </antcall>
+    <target name="deployAutopilot release version" depends="cleandeploydir">
+        <antcall target="buildAutopilot release version"/>
+        <antcall target="deploy"/>
     </target>
 
     <target name="clearbuild">
@@ -46,12 +56,12 @@
     </target>
 
     <target name="initbuild">
-        <mkdir dir="${flightassistantdir}"/>
+        <mkdir dir="${flightassistantdestdir}"/>
         <mkdir dir="${hooksdestdir}"/>
     </target>
 
     <target name="copycore">
-        <copy todir="${flightassistantdir}">
+        <copy todir="${flightassistantdestdir}">
             <fileset dir="${coredir}"/>
         </copy>
     </target>
@@ -69,8 +79,8 @@
             <propertyresource name="fa.extensions"/>
             <filterchain refid="extensions.pattern.filter"/>
         </loadresource>
-        <mkdir dir="${flightassistantdir}/extensions"/>
-        <copy todir="${flightassistantdir}/extensions">
+        <mkdir dir="${flightassistantdestdir}/extensions"/>
+        <copy todir="${flightassistantdestdir}/extensions">
             <fileset dir="${extensionsdir}" includes="${extensions.includes}"/>
         </copy>
     </target>
@@ -95,12 +105,12 @@
     </target>
 
     <target name="copyassistant" if="fa.name">
-        <copy todir="${flightassistantdir}">
+        <copy todir="${flightassistantdestdir}">
             <fileset dir="${assistantsdir}" includes="${fa.name}/**"/>
         </copy>
     </target>
 
-    <target name="build" depends="clearbuild" if="fa.name">
+    <target name="build" if="fa.name">
         <property name="fa.debug" value="true"/>
         <property name="fa.reload.user.scripts" value="true"/>
         <property name="fa.extensions" value="'builder', 'DCS-calls'"/>
@@ -119,6 +129,24 @@
         <antcall target="copyassistant">
             <param name="fa.name" value="${fa.name}"/>
         </antcall>
+    </target>
+
+    <target name="prepareRelease" depends="initbuild">
+        <copy todir="${flightassistantdestdir}">
+            <fileset dir="${basedir}" includes="*README.txt"/>
+        </copy>
+        <copy todir="${flightassistantdestdir}">
+            <fileset dir="${basedir}" includes="LICENSE"/>
+            <globmapper from="LICENSE" to="LICENSE.txt"/>
+        </copy>
+    </target>
+
+    <target name="wrapRelease" depends="prepareRelease">
+        <property name="release.name" value="FlightAssistant"/>
+        <property name="release.version" value="0.0"/>
+        <zip destfile="${builddir}/${release.name}_${release.version}.zip"
+             basedir="${builddir}"
+             includes="${flightassitantdirname}/**/*.*,Hooks/**/*.*"/>
     </target>
 
     <target name="deploy">

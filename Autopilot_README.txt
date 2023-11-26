@@ -1,22 +1,3 @@
-# DCS-FlightAssistant
-
-The goal of this project is to build aircraft specific assistants for
-DCS world.
-FlightAssistant hooks into DCS by installing it in
-Saved Games\DCS[.variant_suffix]\Scripts\FlightAssistant
-and placing one file, FlightAssistantLoader.lua, in
-Saved Games\DCS[.variant_suffix]\Scripts\Hooks
-
-
-## TF-51D/P-51D and Spitfire Autopilot
-
-The first application and proof of concept is an autopilot for the
-TF-51D/P-51D and the Spitfire.
-When engaged, the autopilot will keep the plane in level flight by taking
-control of the plane's control stick. Throttle and rudder are left for the
-pilot to set and trim.
-
-
 ### Installation
 Extract the files from the zip-archive into your
 Saved Games\DCS[.variant_suffix]\Scripts folder.
@@ -40,6 +21,3 @@ be switched to any channel again.
 All sequences start with channel D. If channel D is active before you want to
 command the autopilot, you must first switch to another channel to be able to
 start the sequence with channel D.
-
-## Known Issues
-- Autopilot only works in single player mode because DCS does not allow to take control in multiplayer mode.

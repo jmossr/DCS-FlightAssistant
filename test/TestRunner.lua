@@ -17,6 +17,7 @@ function initFlightAssistantTestConfig(config, reload, unitConfig)
 end
 
 local expectations = {}
+local skippableEvents = {}
 local expectationIndex = 1;
 local errors = 0
 local debugUserCallbacks = false
@@ -57,20 +58,33 @@ local function resetExpectations()
     expectations = {}
     expectationIndex = 1
 end
-
+function addSkippableEvent(eventName)
+    table.insert(skippableEvents, eventName)
+end
+function isSkippableEvent(eventName)
+    local n = #skippableEvents
+    local prefix
+    for i = 1, n do
+        prefix = skippableEvents[i]
+        if string.find(eventName, prefix, 1, true) then
+            return true
+        end
+    end
+    return false
+end
 function checkEvent(eventName, partialMatch)
     local expectation = expectations[expectationIndex]
     if expectation then
-        expectationIndex = expectationIndex + 1
         if partialMatch and string.find(eventName, expectation.eventName, 1, true) or eventName == expectation.eventName then
+            expectationIndex = expectationIndex + 1
             if expectation.doReturn then
                 return expectation.doReturn()
             end
-        else
+        elseif not isSkippableEvent(eventName) then
             errors = errors + 1
             error('expected "' .. expectation.eventName .. '", got: ' .. eventName, 2)
         end
-    else
+    elseif not isSkippableEvent(eventName) then
         errors = errors + 1
         error(eventName .. ' not expected', 2)
     end
@@ -179,6 +193,8 @@ function setupFlightAssistant(config, selfData, withLogEvents)
         expect('flightAssistantScriptFile')
         expect('flightAssistantScriptDir')
         expect('extensionsDir')
+        expect('Loading file ..\\core\\pUnit.lua')
+        addSkippableEvent(': Loading file')
     end
     if withLogEvents then
         expect('[Test] FlightAssistant created')

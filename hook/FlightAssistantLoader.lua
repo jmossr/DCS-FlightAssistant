@@ -60,7 +60,8 @@ do
             @FA_NAME@ = {
                 pUnitFallbackTable = { ['P-51D-30-NA'] = 'P-51D-25-NA',
                                        ['P-51D-25-NA'] = 'P-51D',
-                                       ['P-51D'] = 'TF-51D' },
+                                       ['P-51D'] = 'TF-51D',
+                                       ['SpitfireLFMkIXCW'] = 'SpitfireLFMkIX'},
                 reloadOnMissionLoad = @FA_RELOAD_UNIT@,
             },
         }

@@ -129,6 +129,9 @@ local function tryLoadPUnit(fa, name, initPUnitExtensions)
             unitConfig = fa.pUnitConfig,
         }
         pUnit.proxy = proxy
+        proxy.include = function(libName, ...)
+            fa.include(libName, proxy, unpack(arg))
+        end
         if type(initPUnitExtensions) == 'table' then
             for _, initPUnit in pairs(initPUnitExtensions) do
                 initPUnit(pUnit, proxy)

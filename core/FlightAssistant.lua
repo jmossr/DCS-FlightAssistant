@@ -252,18 +252,26 @@ local libArgs = { fmtInfo = fmtInfo, fmtWarning = fmtWarning, fmtError = fmtErro
                   addOnValueAction = addOnValueAction, addOnValueBetweenAction = addOnValueBetweenAction, fire = fire,
                   isDebugEnabled = isDebugEnabled, isDebugUnitEnabled = isDebugUnitEnabled,
                   flightAssistantConfig = flightAssistantConfig, isSimulationPaused = isSimulationPaused }
-local function loadLib(path)
+local function loadLua(path, env, ...)
+    if isDebugEnabled then
+        fmtInfo('Loading file %s', path)
+    end
     local f, err = loadfile(path)
     if not f then
         error('Failed to load file ' .. path .. ': ' .. (err or '?'))
     end
-    local ok, r = pcall(f, libArgs)
+    if env then
+        setfenv(f, env)
+    end
+    local ok, r = pcall(f, unpack(arg))
     if not ok then
         error('Executing lua in ' .. path .. ' FAILED: ' .. (r or '?'))
     end
     return r or true
 end
-
+local function loadLib(path)
+    return loadLua(path, nil, libArgs)
+end
 --[[------
     --Extension support
 --------]]
@@ -375,6 +383,18 @@ local function setupFlightAssistant(faName, configTable)
     callExtensionFunctions(INIT_FLIGHTASSISTANT, faSelf, configTable)
 
     setfenv(1, faSelf)
+
+    --[[------
+        Tools
+    --------]]
+    function include(name, env, ...)
+        if not env.includes then
+            env.includes = {}
+        end
+        if not env.includes[name] then
+            env.includes[name] = loadLua(flightAssistantDir .. name .. ".lua", env, unpack(arg))
+        end
+    end
 
     --[[------
         PUnit management
