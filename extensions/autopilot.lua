@@ -41,7 +41,7 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
         if mode and not isSimulationPaused() then
             time = LoGetModelTime()
             deltaTime = time - lastSampleTime
-            if deltaTime > maxSampleTime then
+            if deltaTime > maxSampleTime or deltaTime < 0 then
                 lastSampleTime = time
             elseif deltaTime > minSampleTime then
                 lastSampleTime = time
@@ -82,8 +82,11 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
         setAltitudeTarget = setAltitudeTarget,
         engageLevelFlight = function(selfData)
             local modeSwitched = mode ~= MODE_LEVEL
-            setBankTarget(0)
-            setPitchTarget(0.05)
+            if modeSwitched then
+                reset()
+                setBankTarget(0)
+                setPitchTarget(0.05)
+            end
             setAltitudeTarget(selfData.Position.y)
             mode = MODE_LEVEL
             return modeSwitched
@@ -91,6 +94,7 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
         engageLevelBank = function(selfData)
             local modeSwitched = mode ~= MODE_BANK
             if modeSwitched then
+                reset()
                 local _, currentBankAngle = LoGetADIPitchBankYaw()
                 setBankTarget(currentBankAngle)
                 setPitchTarget(0.05)

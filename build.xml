@@ -46,6 +46,13 @@
         </antcall>
     </target>
 
+    <target name="deployAutopilot noreload">
+        <antcall target="deployAutopilot">
+            <param name="fa.reload.user.scripts" value="false"/>
+            <param name="fa.reload.unit" value="false"/>
+        </antcall>
+    </target>
+
     <target name="deployAutopilot release version" depends="cleandeploydir">
         <antcall target="buildAutopilot release version"/>
         <antcall target="deploy"/>
@@ -92,6 +99,9 @@
         <property name="fa.debug.unit" value="true"/>
         <property name="fa.reload.unit" value="true"/>
 
+        <echo message="fa.debug = ${fa.debug}"/>
+        <echo message="fa.reload.user.scripts = ${fa.reload.user.scripts}"/>
+
         <filter token="FA_DEBUG" value="${fa.debug}"/>
         <filter token="FA_RELOAD_USER_SCRIPTS" value="${fa.reload.user.scripts}"/>
         <filter token="FA_EXTENSIONS" value="${fa.extensions}"/>
@@ -110,13 +120,15 @@
         </copy>
     </target>
 
-    <target name="build" if="fa.name">
+    <target name="build" if="fa.name" depends="clearbuild">
         <property name="fa.debug" value="true"/>
         <property name="fa.reload.user.scripts" value="true"/>
         <property name="fa.extensions" value="'builder', 'DCS-calls'"/>
         <property name="fa.debug.unit" value="true"/>
         <property name="fa.reload.unit" value="true"/>
 
+        <echo message="fa.debug = ${fa.debug}"/>
+        <echo message="fa.reload.user.scripts = ${fa.reload.user.scripts}"/>
         <antcall target="copycore"/>
         <antcall target="copyextensions">
             <param name="fa.extensions" value="${fa.extensions}"/>
