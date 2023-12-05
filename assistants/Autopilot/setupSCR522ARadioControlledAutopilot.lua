@@ -9,17 +9,17 @@ local autopilotFly = autopilot.fly
 local autopilotDisengage = autopilot.disengage
 local textToOwnShip = textToOwnShip
 
-onSignalSequence('A/P_LVL_BNK').call(function()
+onSignal('A/P_LVL_BNK').call(function()
     if autopilotEngageLevelBank(selfData) then
         textToOwnShip('A/P LVL BNK')
     end
 end)
-onSignalSequence('A/P_LVL').call(function()
+onSignal('A/P_LVL').call(function()
     if autopilotEngageLevelFlight(selfData) then
         textToOwnShip('A/P LVL')
     end
 end)
-onSignalSequence('A/P_OFF').call(function()
+onSignal('A/P_OFF').call(function()
     if autopilotDisengage() then
         textToOwnShip('A/P OFF')
     end

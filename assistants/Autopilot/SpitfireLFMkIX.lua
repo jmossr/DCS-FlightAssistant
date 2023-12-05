@@ -9,3 +9,5 @@ local bankControl = createPDiController(1, 0.3, 0.5, 0.3, -1, 1, 3)
 local altitudeControl = createPDiController(0.005, 0.015, 0.001, 2, -0.1, 0.3, 0.05)
 
 include("setupSCR522ARadioControlledAutoPilot", altitudeControl, pitchControl, bankControl)
+
+onCommand(15, 3001).fireSignal('A/P_OFF')

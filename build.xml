@@ -17,7 +17,7 @@
     <property name="hooksdestdir" location="${builddir}/Hooks"/>
     <property name="deploydir" location="${user.home}/Saved Games/DCS/Scripts"/>
 
-    <property name="autopilot.extensions" value="'builder', 'DCS-calls', 'signals', 'PDi', 'autopilot'"/>
+    <property name="autopilot.extensions" value="'builder', 'DCS-calls', 'signals', 'flags', 'PDi', 'autopilot'"/>
 
     <target name="buildAutopilot" description="build Autopilot">
         <antcall target="build">
