@@ -136,14 +136,22 @@ local function addBuilderAction(builder, observers)
     end
     return action.handle
 end
+local removeValueInspectionFunctions = function(valueInspectionProxy)
+    valueInspectionProxy.valueChanged = nil
+    valueInspectionProxy.value = nil
+    valueInspectionProxy.valueBetween = nil
+    valueInspectionProxy.valueAbove = nil
+    valueInspectionProxy.valueBelow = nil
+end
 local installValueInspectionProxy = function(builder, eventSourceAccessor)
     local proxy = {}
     builder.proxy = proxy
     proxy.valueChanged = function()
         createBuilderActionProxy(builder)
         builder.onBuildCb = function(_)
-            return addOnValueChangedAction(eventSourceAccessor, builder:createAction())
+            return addOnValueChangedAction(eventSourceAccessor, builder:createAction(), builder.debug)
         end
+        removeValueInspectionFunctions(proxy)
         return proxy
     end
     proxy.value = function(value)
@@ -152,8 +160,9 @@ local installValueInspectionProxy = function(builder, eventSourceAccessor)
         end
         createBuilderActionProxy(builder)
         builder.onBuildCb = function(_)
-            return addOnValueAction(eventSourceAccessor, builder:createAction(), value or 1)
+            return addOnValueAction(eventSourceAccessor, builder:createAction(), value or 1, builder.debug)
         end
+        removeValueInspectionFunctions(proxy)
         return proxy
     end
     proxy.valueBetween = function(minValue, maxValue)
@@ -163,8 +172,36 @@ local installValueInspectionProxy = function(builder, eventSourceAccessor)
         end
         createBuilderActionProxy(builder)
         builder.onBuildCb = function(_)
-            return addOnValueBetweenAction(eventSourceAccessor, builder:createAction(), minValue, maxValue)
+            return addOnValueBetweenAction(eventSourceAccessor, builder:createAction(), minValue, maxValue, builder.debug)
         end
+        removeValueInspectionFunctions(proxy)
+        return proxy
+    end
+    proxy.valueAbove = function(minValue)
+        if isDebugUnitEnabled then
+            checkArgType('.valueAbove(minValue)', 'minValue', minValue, 'number', true, 2)
+        end
+        createBuilderActionProxy(builder)
+        builder.onBuildCb = function(_)
+            return addOnValueBetweenAction(eventSourceAccessor, builder:createAction(), minValue, nil, builder.debug)
+        end
+        removeValueInspectionFunctions(proxy)
+        return proxy
+    end
+    proxy.valueBelow = function(maxValue)
+        if isDebugUnitEnabled then
+            checkArgType('.valueBelow(maxValue)', 'maxValue', maxValue, 'number', true, 2)
+        end
+        createBuilderActionProxy(builder)
+        builder.onBuildCb = function(_)
+            return addOnValueBetweenAction(eventSourceAccessor, builder:createAction(), nil, maxValue, builder.debug)
+        end
+        removeValueInspectionFunctions(proxy)
+        return proxy
+    end
+    proxy.debug = function()
+        builder.debug = true
+        proxy.debug = nil
         return proxy
     end
 end
