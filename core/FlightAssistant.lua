@@ -169,19 +169,31 @@ local function addAction(actionList, action, condition)
 end
 local MIN_VALUE = -1000000
 local MAX_VALUE = 1000000
-local function addOnValueChangedAction(eventSourceAccessor, action)
-    addAction(eventSourceAccessor(MIN_VALUE, MAX_VALUE).observers, action)
+local function addOnValueChangedAction(eventSourceAccessor, action, debug)
+    local eventSource = eventSourceAccessor(MIN_VALUE, MAX_VALUE)
+    if debug then
+        eventSource.debug = true
+    end
+    addAction(eventSource.observers, action)
 end
-local function addOnValueAction(eventSourceAccessor, action, value)
+local function addOnValueAction(eventSourceAccessor, action, value, debug)
     local expected = tostring(value)
-    addAction(eventSourceAccessor(value, value).observers, action, function(newValue)
+    local eventSource = eventSourceAccessor(value, value)
+    if debug then
+        eventSource.debug = true
+    end
+    addAction(eventSource.observers, action, function(newValue)
         return expected == tostring(newValue);
     end)
 end
-local function addOnValueBetweenAction(eventSourceAccessor, action, minValue, maxValue)
+local function addOnValueBetweenAction(eventSourceAccessor, action, minValue, maxValue, debug)
     local min = tonumber(minValue) or MIN_VALUE
     local max = tonumber(maxValue) or MAX_VALUE
-    addAction(eventSourceAccessor(minValue, maxValue).observers, action, function(newValue)
+    local eventSource = eventSourceAccessor(minValue, maxValue)
+    if debug then
+        eventSource.debug = true
+    end
+    addAction(eventSource.observers, action, function(newValue)
         local numVal = tonumber(newValue)
         return numVal and min <= numVal and numVal <= max;
     end)
