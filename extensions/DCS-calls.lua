@@ -99,6 +99,7 @@ local error = error
 local flightAssistant = ...
 local fmtWarning = flightAssistant.fmtWarning
 local fmtInfo = fmtWarning and flightAssistant.fmtInfo
+local isDebugEnabled = flightAssistant.isDebugEnabled
 local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
 local dostring_in = net.dostring_in
 local getOptionalExtension = flightAssistant.getOptionalExtension
@@ -306,11 +307,16 @@ local function checkDeviceArgumentInspectors(pUnit)
     for deviceId, argInspectors in pairs(pUnit.deviceInspectors) do
         device = XGetDevice(deviceId)
         for argId, inspector in pairs(argInspectors) do
-            argValue = device.get_argument_value(device, argId)
+            argValue = device:get_argument_value(argId)
             oldValue = inspector.lastValue
             if oldValue ~= argValue then
+                if isDebugEnabled and inspector.debug then
+                    fmtInfo("device %s, argument %s value changed to %s", deviceId, argId, argValue)
+                end
                 inspector.lastValue = argValue
                 fire(inspector.observers, argValue, oldValue, deviceId, argId)
+            elseif isDebugEnabled and inspector.debug then
+                    fmtInfo("device %s, argument %s value = %s", deviceId, argId, argValue)
             end
         end
     end
