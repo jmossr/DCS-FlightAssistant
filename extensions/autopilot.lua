@@ -1,5 +1,7 @@
 local flightAssistant = ...
 local isSimulationPaused = flightAssistant.isSimulationPaused
+local fmtInfo = flightAssistant.fmtInfo
+local isDebugEnabled = flightAssistant.isDebugEnabled
 
 local LoGetModelTime = Export.LoGetModelTime
 local LoGetADIPitchBankYaw = Export.LoGetADIPitchBankYaw
@@ -13,6 +15,7 @@ local MODE_CUSTOM = 3
 local function createAutopilot(minSampleTime, altitudeControl, pitchControl, bankControl, rudderControl)
     local maxSampleTime = minSampleTime * 50
     local lastSampleTime = 0
+    local lastLogTime = 0
     local time, deltaTime
     local pitch, bank
     local pitchInput, rollInput, rudderInput
@@ -40,6 +43,11 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
     local function fly(selfData)
         if mode and not isSimulationPaused() then
             time = LoGetModelTime()
+            if isDebugEnabled and (time - lastLogTime > 5) then
+                lastLogTime = time
+                fmtInfo('autopilot active')
+            end
+
             deltaTime = time - lastSampleTime
             if deltaTime > maxSampleTime or deltaTime < 0 then
                 lastSampleTime = time
@@ -70,6 +78,9 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
         fly = fly,
         engage = function()
             if not mode then
+                if isDebugEnabled then
+                    fmtInfo('autopilot engage')
+                end
                 reset()
                 mode = MODE_CUSTOM
                 return true
@@ -83,6 +94,9 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
         engageLevelFlight = function(selfData)
             local modeSwitched = mode ~= MODE_LEVEL
             if modeSwitched then
+                if isDebugEnabled then
+                    fmtInfo('autopilot engage level flight')
+                end
                 reset()
                 setBankTarget(0)
                 setPitchTarget(0.05)
@@ -94,6 +108,9 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
         engageLevelBank = function(selfData)
             local modeSwitched = mode ~= MODE_BANK
             if modeSwitched then
+                if isDebugEnabled then
+                    fmtInfo('autopilot engage bank hold')
+                end
                 reset()
                 local _, currentBankAngle = LoGetADIPitchBankYaw()
                 setBankTarget(currentBankAngle)
@@ -105,6 +122,9 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
         end,
         disengage = function()
             local modeSwitched = mode and true or false
+            if modeSwitched and isDebugEnabled then
+                fmtInfo('autopilot disengage')
+            end
             mode = nil
             return modeSwitched
         end,
