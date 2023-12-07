@@ -37,6 +37,9 @@ end
 
 local function sFire(self)
     if not self.firing then
+        if isDebugEnabled then
+            fmtInfo('firing %s', self.name)
+        end
         self.firing = true
         local signal = self.signal
         fire(self.observers, signal)
