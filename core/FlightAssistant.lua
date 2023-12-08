@@ -156,7 +156,10 @@ local function getTrimmedTableId(t)
     return tostring(t):match(":%s*0*([%dABCDEFabcdef]+)")
 end
 local function fireConditional(self, ...)
-    if self.condition(unpack(arg)) then
+    if self.state then
+        self.state = self.condition(unpack(arg))
+    elseif self.condition(unpack(arg)) then
+        self.state = true
         self.action:fire(unpack(arg))
     end
 end
