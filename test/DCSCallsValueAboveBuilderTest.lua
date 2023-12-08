@@ -33,6 +33,13 @@ return { test = function()
     fireUserCallback('onSimulationFrame')
     checkEvents('D')
 
+    expect('Export.LoGetSelfData').andReturn(selfData)
+    expect('Export.GetDevice(25)').andReturn({ get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('getDeviceArgumentValue(3001)').andReturn(0.111)
+    expect('onSimulationFrame')
+    fireUserCallback('onSimulationFrame')
+    checkEvents('D')
+
     assert(withLogEvents, 'withLogEvents must be true for this test')
 
 end }

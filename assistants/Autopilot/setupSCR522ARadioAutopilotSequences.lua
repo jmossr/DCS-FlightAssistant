@@ -1,3 +1,4 @@
+defineSignalGroup('RADIO').forSignals('RADIO_A', 'RADIO_B', 'RADIO_C', 'RADIO_D')
 defineSignalSequence('A/P_LVL_BNK_SQ').forSignals('RADIO_D', 'RADIO_C', 'RADIO_A').within(2.5)
 defineSignalSequence('A/P_LVL_SQ').forSignals('RADIO_D', 'RADIO_C', 'RADIO_B').within(2.5)
 defineSignalSequence('A/P_OFF_SQ').forSignals('RADIO_D', 'RADIO_C', 'RADIO_D').within(2.5)

@@ -1,4 +1,3 @@
-include("setupSCR522ARadioTriggers",120)
 include("setupSCR522ARadioAutopilotSequences")
 
 --[[
@@ -11,3 +10,7 @@ local altitudeControl = createPDiController(0.005, 0.015, 0.001, 2, -0.1, 0.3, 0
 include("setupSCR522ARadioControlledAutoPilot", altitudeControl, pitchControl, bankControl)
 
 onCommand(15, 3001).fireSignal('A/P_OFF')
+onCommand(15, 3002).fireSignal('RADIO_A')
+onCommand(15, 3003).fireSignal('RADIO_B')
+onCommand(15, 3004).fireSignal('RADIO_C')
+onCommand(15, 3005).fireSignal('RADIO_D')
