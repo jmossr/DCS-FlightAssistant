@@ -2,10 +2,115 @@
     --FlightAssistant
     --Builder
 
-    Allows extensions to combine event sources and actions without knowing about the other extensions.
-    Example using extensions 'builder', 'DCS-calls' and 'scheduler'
-    -- [F/A-18 device 0, arg 47] = 'A/A indicator light': when ON, schedule to set user flag "AAIsOn" after 0.5 seconds
-    onDeviceArgument(0, 47).value(1).schedule(0.5).setUserFlag("AAIsOn")
+    Allows extensions to combine event sources and actions from different extensions
+    without knowing about other extensions.
+
+    The following example uses extensions 'builder', 'DCS-calls' and 'scheduler'
+    and is based on this DCS knowledge: F/A-18 device 0, argument 47 = 'A/A indicator light':
+    onDeviceArgument(0, 47).valueAbove(0.2).schedule(0.5).setUserFlag("AAIsOn")
+    --> what it does: when 'A/A indicator light' switches from OFF to ON,
+                      schedule to set user flag "AAIsOn" to a value of 1 after a delay of 0.5 seconds
+
+    To use this library in an extension, it can be imported as follows:
+        local flightAssistant = ...
+        local builderLib = flightAssistant.requireExtension('builder')
+        local createBuilder = builderLib.createBuilder
+
+    Background information:
+        Upon activating a player unit, FlightAssistant will call function 'initPUnit(pUnit, proxy)'
+        for every extension that exports that function. This way an extension can add data structures
+        to the player unit and can add functions to the proxy table. All data and functions in the
+        proxy table will be made available to the code loaded for that particular player module.
+
+    Using this library, any extension can
+        1. define functions to get or create a specific event source with which
+           any action from any extension can be combined;
+        2. register functions to attach an action to an event source created by any extension.
+           An action attached to an event source will be executed whenever the event source fires an event
+
+    Notes:
+        [1.] To define an event source that can be combined with an action later on,
+             an extension should provide a function that creates a 'builder' and returns a table
+             containing all functions available to a player module to connect actions to that event source.
+             See function 'createBuilder' available in this library.
+        [2.] See function 'addBuilderExtension' in this library.
+
+        Action: an action is a lua table with a fire-method.
+                The fire-method will be called with event source specific arguments.
+                action:fire(eventArg1, eventArg2,...)
+
+    This library provides the following functions to other extensions:
+
+    --
+    createBuilder(pUnit, name, onBuildCb, onCloseCb, createActionProxy)
+        :: creates a new builder to set up an event source.
+        pUnit             : player unit, a table containing al data linked to the current player unit.
+                            An extension can add data or interact with data in this table.
+        name              : a human readable name for this builder, used for logging when debugging
+        onBuildCb         : function called to build the actual event source. The builder table will be passed
+                            as an argument to this function.
+        onCloseCb         : function called when the builder is closed, i.e. after building or when the builder
+                            is discarded without building. This may be useful to clean up stuff.
+        createActionProxy : (boolean) value to indicate whether a function table should be created linked
+                            to the created builder and containing functions to attach all known actions.
+
+        returns           : the created builder, a table with at least the following keys:
+                            pUnit
+                            name
+                            If createActionProxy resolves to 'true', the builder will also contain a
+                            function table accessible by key 'proxy'.
+
+        Special builder methods:
+            builder:addBuilderAction(actionList) : creates the action attached to the builder
+                                     and inserts it into the given list of actions.
+                                 !!! To be able to build an action, key 'buildActionCb' and key 'actionId'
+                                     (builder.buildActionCb and builder.actionId)
+                                      must be set prior to calling this method.
+            builder:createAction() : creates the action attached to the builder.
+                                 !!! To be able to build an action, key 'buildActionCb' and key 'actionId'
+                                     (builder.buildActionCb and builder.actionId)
+                                      must be set prior to calling this method.
+            builder:build()        : executes the onBuildCb of the builder and performs some
+                                     internal housekeeping tasks.
+
+        Example usage:
+                local function initPUnit(pUnit, proxy)
+                    proxy.onSignal = function(signal)
+                        local buildCb = function(builder)
+                            local eventSource = getOrCreateSignal(builder.pUnit, signal)
+                            builder:addBuilderAction(eventSource.observers);
+                        end
+                        local builder = createBuilder(pUnit, 'onSignal(' .. signal .. ')', buildCb, nil, true)
+                        return builder.proxy
+                    end
+                end
+
+    --
+    addBuilderExtension(f)
+        :: adds a callback function that will be called with arguments (builder, builder.proxy)
+        :: whenever a new builder is created.
+        f       : callback function that will be called when initializing a builder
+
+        Example usage, to define an action 'fireSignal(signal)' that can be attached to an event source:
+
+            do
+                local function buildWithSignalAction(builder, signal)
+                    local actionId = 'fireSignal(' .. signal .. ')'
+                    local pUnit = builder.pUnit
+                    builder.actionId = actionId
+                    builder.buildActionCb = function()
+                        return getOrCreateSignal(pUnit, signal)
+                    end
+                    return builder:build()
+               end
+               local function prepareActions(builder, actionTable)
+                   actionTable.fireSignal = function(signal)
+                       return buildWithSignalAction(builder, signal)
+                   end
+               end
+
+               builderLib.addBuilderExtension(prepareActions)
+           end
 
 --------]=]
 
