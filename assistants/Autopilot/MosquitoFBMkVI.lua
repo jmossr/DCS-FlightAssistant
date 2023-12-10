@@ -14,3 +14,8 @@ onCommand(24, 3002).fireSignal('RADIO_A')
 onCommand(24, 3003).fireSignal('RADIO_B')
 onCommand(24, 3004).fireSignal('RADIO_C')
 onCommand(24, 3005).fireSignal('RADIO_D')
+
+onDeviceArgument(0, 37).valueAbove(0.1).fireSignal('RADIO_A_L')
+onDeviceArgument(0, 38).valueAbove(0.1).fireSignal('RADIO_B_L')
+onDeviceArgument(0, 39).valueAbove(0.1).fireSignal('RADIO_C_L')
+onDeviceArgument(0, 40).valueAbove(0.1).fireSignal('RADIO_D_L')

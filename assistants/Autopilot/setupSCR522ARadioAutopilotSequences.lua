@@ -5,3 +5,11 @@ defineSignalSequence('A/P_OFF_SQ').forSignals('RADIO_D', 'RADIO_C', 'RADIO_D').w
 onSignalSequence('A/P_LVL_BNK_SQ').fireSignal('A/P_LVL_BNK')
 onSignalSequence('A/P_LVL_SQ').fireSignal('A/P_LVL')
 onSignalSequence('A/P_OFF_SQ').fireSignal('A/P_OFF')
+
+defineSignalGroup('RADIO_L').forSignals('RADIO_A_L', 'RADIO_B_L', 'RADIO_C_L', 'RADIO_D_L')
+defineSignalSequence('A/P_LVL_BNK_L_SQ').forSignals('RADIO_D_L', 'RADIO_C_L', 'RADIO_A_L').within(2.5)
+defineSignalSequence('A/P_LVL_L_SQ').forSignals('RADIO_D_L', 'RADIO_C_L', 'RADIO_B_L').within(2.5)
+defineSignalSequence('A/P_OFF_L_SQ').forSignals('RADIO_D_L', 'RADIO_C_L', 'RADIO_D_L').within(2.5)
+onSignalSequence('A/P_LVL_BNK_L_SQ').fireSignal('A/P_LVL_BNK')
+onSignalSequence('A/P_LVL_L_SQ').fireSignal('A/P_LVL')
+onSignalSequence('A/P_OFF_L_SQ').fireSignal('A/P_OFF')
