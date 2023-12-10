@@ -96,7 +96,7 @@
 --------]=]
 local pairs = pairs
 local error = error
-local flightAssistant = ...
+local flightAssistant = getfenv(1)
 local fmtWarning = flightAssistant.fmtWarning
 local fmtInfo = fmtWarning and flightAssistant.fmtInfo
 local isDebugEnabled = flightAssistant.isDebugEnabled

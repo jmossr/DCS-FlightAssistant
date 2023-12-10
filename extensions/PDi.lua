@@ -1,4 +1,4 @@
-local flightAssistant = ...
+local flightAssistant = getfenv(1)
 local fmtInfo = flightAssistant.fmtInfo
 
 local function confine(value, min, max)

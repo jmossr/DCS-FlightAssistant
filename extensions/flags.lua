@@ -6,7 +6,7 @@ local tinsert = table.insert
 local tostring = tostring
 local tonumber = tonumber
 local pairs = pairs
-local flightAssistant = ...
+local flightAssistant = getfenv(1)
 local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
 local getOptionalExtension = flightAssistant.getOptionalExtension
 local requireExtension = flightAssistant.requireExtension
@@ -100,7 +100,7 @@ local function fireOnCommandAction(self, newValue)
     if not self.disabled and tonumber(newValue) ~= 0 then
         setUserFlag(self.flag, 0)
         startListenCommand(self.deviceId, self.commandId, self.flag, self.minValue, self.maxValue)
-        fire(self.observers)
+        fire(self.observers, newValue, 0, self.deviceId, self.commandId)
     end
 end
 local onCommandTriggerCount = 0

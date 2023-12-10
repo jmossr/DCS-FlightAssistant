@@ -1,4 +1,4 @@
-local flightAssistant = ...
+local flightAssistant = getfenv(1)
 local isSimulationPaused = flightAssistant.isSimulationPaused
 local fmtInfo = flightAssistant.fmtInfo
 local isDebugEnabled = flightAssistant.isDebugEnabled

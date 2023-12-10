@@ -12,6 +12,7 @@ local loadfile = loadfile
 local pcall = pcall
 local error = error
 local tonumber = tonumber
+local setmetatable = setmetatable
 local flightAssistantConfig = ...
 local config = (flightAssistantConfig and type(flightAssistantConfig) == 'table') and flightAssistantConfig or nil
 local isReloadUserScriptsOnMissionLoad = not config or config.reloadUserScriptsOnMissionLoad
@@ -110,6 +111,7 @@ local flightAssistantScriptDir = smatch(flightAssistantConfig.flightAssistantScr
 local extensionsDir = flightAssistantConfig.extensionsDir or (flightAssistantScriptDir .. 'extensions')
 local isDebugEnabled = flightAssistantConfig.debug and true or false
 local isDebugUnitEnabled = flightAssistantConfig.debugUnit and true or isDebugEnabled
+local pUnitLibName = flightAssistantConfig.pUnitLib or 'pUnit'
 
 --[[------
     --Logging
@@ -155,61 +157,6 @@ end
 local function getTrimmedTableId(t)
     return tostring(t):match(":%s*0*([%dABCDEFabcdef]+)")
 end
-local function fireConditional(self, ...)
-    if self.state then
-        self.state = self.condition(unpack(arg))
-    elseif self.condition(unpack(arg)) then
-        self.state = true
-        self.action:fire(unpack(arg))
-    end
-end
-local function addAction(actionList, action, condition)
-    if condition then
-        tinsert(actionList, { action = action, condition = condition, fire = fireConditional })
-    else
-        tinsert(actionList, action)
-    end
-end
-local MIN_VALUE = -1000000
-local MAX_VALUE = 1000000
-local function addOnValueChangedAction(eventSourceAccessor, action, debug)
-    local eventSource = eventSourceAccessor(MIN_VALUE, MAX_VALUE)
-    if debug then
-        eventSource.debug = true
-    end
-    addAction(eventSource.observers, action)
-end
-local function addOnValueAction(eventSourceAccessor, action, value, debug)
-    local expected = tostring(value)
-    local eventSource = eventSourceAccessor(value, value)
-    if debug then
-        eventSource.debug = true
-    end
-    addAction(eventSource.observers, action, function(newValue)
-        return expected == tostring(newValue);
-    end)
-end
-local function addOnValueBetweenAction(eventSourceAccessor, action, minValue, maxValue, debug)
-    local min = tonumber(minValue) or MIN_VALUE
-    local max = tonumber(maxValue) or MAX_VALUE
-    local eventSource = eventSourceAccessor(minValue, maxValue)
-    if debug then
-        eventSource.debug = true
-    end
-    addAction(eventSource.observers, action, function(newValue)
-        local numVal = tonumber(newValue)
-        return numVal and min <= numVal and numVal <= max;
-    end)
-end
-
-local function fire(actionList, ...)
-    local n = #actionList
-    local action
-    for i = 1, n do
-        action = actionList[i]
-        action:fire(unpack(arg))
-    end
-end
 local function NOOP()
 end
 local function indexOf(list, element)
@@ -252,6 +199,64 @@ local function checkPositiveNumberArg(fsignature, argName, arg, requireNonNil, e
         error(sformat('%s \'%s\' must be a positive number, not %s', fsignature, argName, arg), errorLevel + 1)
     end
 end
+
+--[[------
+    --Actions
+------]]--
+local function fireConditional(self, ...)
+    if self.state then
+        self.state = self.condition(unpack(arg))
+    elseif self.condition(unpack(arg)) then
+        self.state = true
+        self.action:fire(unpack(arg))
+    end
+end
+local function addAction(actionList, action, condition)
+    if condition then
+        tinsert(actionList, { action = action, condition = condition, fire = fireConditional })
+    else
+        tinsert(actionList, action)
+    end
+end
+local absoluteMinimumEventValue = flightAssistantConfig.absoluteMinimumEventValue or -1000000
+local absoluteMaximumEventValue = flightAssistantConfig.absoluteMaximumEventValue or 1000000
+local function addOnValueChangedAction(eventSourceAccessor, action, debug)
+    local eventSource = eventSourceAccessor(absoluteMinimumEventValue, absoluteMaximumEventValue)
+    if debug then
+        eventSource.debug = true
+    end
+    addAction(eventSource.observers, action)
+end
+local function addOnValueAction(eventSourceAccessor, action, value, debug)
+    local expected = tostring(value)
+    local eventSource = eventSourceAccessor(value, value)
+    if debug then
+        eventSource.debug = true
+    end
+    addAction(eventSource.observers, action, function(newValue)
+        return expected == tostring(newValue);
+    end)
+end
+local function addOnValueBetweenAction(eventSourceAccessor, action, minValue, maxValue, debug)
+    local min = tonumber(minValue) or absoluteMinimumEventValue
+    local max = tonumber(maxValue) or absoluteMaximumEventValue
+    local eventSource = eventSourceAccessor(minValue, maxValue)
+    if debug then
+        eventSource.debug = true
+    end
+    addAction(eventSource.observers, action, function(newValue)
+        local numVal = tonumber(newValue)
+        return numVal and min <= numVal and numVal <= max;
+    end)
+end
+local function fire(actionList, ...)
+    local n = #actionList
+    local action
+    for i = 1, n do
+        action = actionList[i]
+        action:fire(unpack(arg))
+    end
+end
 local function isSimulationPaused()
     return simulationPaused
 end
@@ -259,14 +264,16 @@ end
     --Lib support
 --------]]
 local libs = {}
-local libArgs = { fmtInfo = fmtInfo, fmtWarning = fmtWarning, fmtError = fmtError,
-                  NOOP = NOOP, indexOf = indexOf, listAddOnce = listAddOnce, printTable = printTable, clearTable = clearTable,
-                  copyAll = copyAll, getTrimmedTableId = getTrimmedTableId,
-                  checkArgType = checkArgType, checkStringOrNumberArg = checkStringOrNumberArg, checkPositiveNumberArg = checkPositiveNumberArg,
-                  addAction = addAction, addOnValueChangedAction = addOnValueChangedAction,
-                  addOnValueAction = addOnValueAction, addOnValueBetweenAction = addOnValueBetweenAction, fire = fire,
-                  isDebugEnabled = isDebugEnabled, isDebugUnitEnabled = isDebugUnitEnabled,
-                  flightAssistantConfig = flightAssistantConfig, isSimulationPaused = isSimulationPaused }
+local libEnv = { fmtInfo = fmtInfo, fmtWarning = fmtWarning, fmtError = fmtError,
+                 NOOP = NOOP, indexOf = indexOf, listAddOnce = listAddOnce, printTable = printTable, clearTable = clearTable,
+                 copyAll = copyAll, getTrimmedTableId = getTrimmedTableId,
+                 checkArgType = checkArgType, checkStringOrNumberArg = checkStringOrNumberArg, checkPositiveNumberArg = checkPositiveNumberArg,
+                 addAction = addAction, addOnValueChangedAction = addOnValueChangedAction,
+                 addOnValueAction = addOnValueAction, addOnValueBetweenAction = addOnValueBetweenAction, fire = fire,
+                 isDebugEnabled = isDebugEnabled, isDebugUnitEnabled = isDebugUnitEnabled,
+                 flightAssistantConfig = flightAssistantConfig, isSimulationPaused = isSimulationPaused }
+setmetatable(libEnv, { __index = _G })
+
 local function loadLua(path, env, ...)
     if isDebugEnabled then
         fmtInfo('Loading file %s', path)
@@ -285,12 +292,12 @@ local function loadLua(path, env, ...)
     return r or true
 end
 local function loadLib(path)
-    return loadLua(path, nil, libArgs)
+    return loadLua(path, libEnv)
 end
 --[[------
     --Extension support
 --------]]
-local INIT_FLIGHTASSISTANT = 'initFlightAssistant'
+local INIT_ASSISTANT = 'initAssistant'
 local INIT_PUNIT = 'initPUnit'
 local BEFORE_PUNIT_ACTIVATION = 'beforePUnitActivation'
 local AFTER_PUNIT_ACTIVATION = 'afterPUnitActivation'
@@ -298,7 +305,7 @@ local BEFORE_PUNIT_DEACTIVATION = 'beforePUnitDeactivation'
 local AFTER_PUNIT_DEACTIVATION = 'afterPUnitDeactivation'
 local BEFORE_SIMULATION_FRAME = 'beforeSimulationFrame'
 local AFTER_SIMULATION_FRAME = 'afterSimulationFrame'
-local extensionEvents = { INIT_FLIGHTASSISTANT,
+local extensionEvents = { INIT_ASSISTANT,
                           INIT_PUNIT, BEFORE_PUNIT_ACTIVATION, AFTER_PUNIT_ACTIVATION,
                           BEFORE_PUNIT_DEACTIVATION, AFTER_PUNIT_DEACTIVATION,
                           BEFORE_SIMULATION_FRAME, AFTER_SIMULATION_FRAME }
@@ -326,7 +333,7 @@ end
 --[[------
     --Imports
 --------]]
-local function requireLocalLib(name, path, isExtension)
+local function requireLib(name, path, isExtension)
     local lib = libs[path]
     if not lib then
         lib = loadLib(path)
@@ -340,23 +347,23 @@ local function requireLocalLib(name, path, isExtension)
     return lib
 end
 local function requireExtension(name)
-    return requireLocalLib(name, extensionsDir .. name .. '.lua', true)
+    return requireLib(name, extensionsDir .. name .. '.lua', true)
 end
 local function getOptionalExtension(name)
     return libs[extensionsDir .. name .. '.lua']
 end
-libArgs.requireExtension = requireExtension
-libArgs.getOptionalExtension = getOptionalExtension
+libEnv.requireExtension = requireExtension
+libEnv.getOptionalExtension = getOptionalExtension
 
 local globalns = _G
 
-local pUnitLib = requireLocalLib('pUnit', flightAssistantScriptDir .. 'pUnit.lua')
+local pUnitLib = requireLib(pUnitLibName, flightAssistantScriptDir .. pUnitLibName .. '.lua')
 local tryLoadPUnit = pUnitLib.tryLoadPUnit
 local activatePUnit = pUnitLib.activatePUnit
 local deactivatePUnit = pUnitLib.deactivatePUnit
 local fireSimCallback = pUnitLib.fireSimCallback
-libArgs.addSimCallbackAction = pUnitLib.addSimCallbackAction
-libArgs.getOrCreateCallbackAction = pUnitLib.getOrCreateCallbackAction
+libEnv.addSimCallbackAction = pUnitLib.addSimCallbackAction
+libEnv.getOrCreateCallbackAction = pUnitLib.getOrCreateCallbackAction
 
 if type(flightAssistantConfig.extensions) == 'table' then
     for _, ext in pairs(flightAssistantConfig.extensions) do
@@ -365,28 +372,29 @@ if type(flightAssistantConfig.extensions) == 'table' then
 end
 
 --[[------
-    --FlightAssistant
+    --Assistant
 --------]]
-local faCount = 0
-local function faCounter()
-    faCount = faCount + 1
-    return faCount
+local assistantCount = 0
+local function assistantCounter()
+    assistantCount = assistantCount + 1
+    return assistantCount
 end
-local function setupFlightAssistant(faName, configTable)
-    if type(faName) ~= 'string' then
-        error("FlightAssistant name must be string, not a " .. type(faName), 2)
+local function setupAssistant(assistantName, configTable)
+    if type(assistantName) ~= 'string' then
+        error("Flight assistant name must be string, not a " .. type(assistantName), 2)
     end
-    if FlightAssistant and FlightAssistant[faName] then
-        error("A flight assistant with name '" .. faName .. "' already exists.", 2)
+    if FlightAssistant and FlightAssistant[assistantName] then
+        error("A flight assistant with name '" .. assistantName .. "' already exists.", 2)
     end
     if configTable.pUnitFallbackTable and type(configTable.pUnitFallbackTable) ~= 'table' then
-        error("FlightAssistant pUnitFallbackTable must be a table, not a " .. type(configTable.pUnitFallbackTable), 2)
+        error("Flight assistant '" .. assistantName .. "' configuration error: pUnitFallbackTable must be a table, not a " .. type(configTable.pUnitFallbackTable), 2)
     end
 
-    local faSelf = {
-        name = faName,
-        id = getTrimmedTableId(faCallbacks) .. ':' .. faCounter(),
-        flightAssistantDir = flightAssistantConfig.playerUnitScriptsDir or (flightAssistantScriptDir .. sgsub(faName, '%s+', '_') .. '\\'),
+    local assistantSelf = {
+        name = assistantName,
+        id = getTrimmedTableId(faCallbacks) .. ':' .. assistantCounter(),
+        --playerUnitScriptsDir is for testing purposes
+        assistantDir = flightAssistantConfig.playerUnitScriptsDir or (flightAssistantScriptDir .. sgsub(assistantName, '%s+', '_') .. '\\'),
         pUnitFallbackTable = configTable.pUnitFallbackTable or {},
         pUnits = {},
         isSimulationPaused = isSimulationPaused,
@@ -395,9 +403,9 @@ local function setupFlightAssistant(faName, configTable)
         pUnitConfig = configTable.unitConfig or {}
     }
 
-    callExtensionFunctions(INIT_FLIGHTASSISTANT, faSelf, configTable)
+    callExtensionFunctions(INIT_ASSISTANT, assistantSelf, configTable)
 
-    setfenv(1, faSelf)
+    setfenv(1, assistantSelf)
 
     --[[------
         Tools
@@ -407,7 +415,7 @@ local function setupFlightAssistant(faName, configTable)
             env.includes = {}
         end
         if not env.includes[name] then
-            env.includes[name] = loadLua(flightAssistantDir .. name .. ".lua", env, unpack(arg))
+            env.includes[name] = loadLua(assistantDir .. name .. ".lua", env, unpack(arg))
         end
     end
 
@@ -420,7 +428,7 @@ local function setupFlightAssistant(faName, configTable)
             deactivatePUnit(activePUnit)
             callExtensionFunctions(AFTER_PUNIT_DEACTIVATION, activePUnit)
             activePUnit.proxy.selfData = nil
-            fmtInfo('[%s] PUnit %s deactivated', faName, activePUnit.name)
+            fmtInfo('[%s] PUnit %s deactivated', assistantName, activePUnit.name)
             activePUnit = nil
         end
         activePUnitName = nil
@@ -432,9 +440,9 @@ local function setupFlightAssistant(faName, configTable)
         if not pUnitTable then
             while not pUnitTable do
                 if isDebugEnabled then
-                    fmtInfo('[%s] Searching for %s.lua', faName, alias)
+                    fmtInfo('[%s] Searching for %s.lua', assistantName, alias)
                 end
-                pUnitTable = tryLoadPUnit(faSelf, alias, extensions[INIT_PUNIT])
+                pUnitTable = tryLoadPUnit(assistantSelf, alias, extensions[INIT_PUNIT])
                 if pUnitTable then
                     pUnits[alias] = pUnitTable
                 else
@@ -468,7 +476,7 @@ local function setupFlightAssistant(faName, configTable)
                     callExtensionFunctions(BEFORE_PUNIT_ACTIVATION, activePUnit)
                     activatePUnit(activePUnit)
                     callExtensionFunctions(AFTER_PUNIT_ACTIVATION, activePUnit)
-                    fmtInfo('[%s] PUnit %s activated', faName, activePUnit.name)
+                    fmtInfo('[%s] PUnit %s activated', assistantName, activePUnit.name)
                 end
             end
         elseif activePUnit then
@@ -481,7 +489,7 @@ local function setupFlightAssistant(faName, configTable)
     --------]]
     function onMissionLoadBegin()
         if reloadOnMissionLoad then
-            fmtInfo('[%s] Reloading pUnits', faName)
+            fmtInfo('[%s] Reloading pUnits', assistantName)
             pUnits = {}
         end
     end
@@ -515,7 +523,7 @@ local function setupFlightAssistant(faName, configTable)
     end
 
     --[[------
-        Register FlightAssistant
+        Register Assistant
     --------]]
     tinsert(faCallbacks, {
         onMissionLoadBegin = onMissionLoadBegin,
@@ -530,15 +538,21 @@ local function setupFlightAssistant(faName, configTable)
     if not FlightAssistant then
         FlightAssistant = {}
     end
-    FlightAssistant[faName] = { name = faName, id = faSelf.id }
+    FlightAssistant[assistantName] = { name = assistantName, id = assistantSelf.id }
 
-    fmtInfo('[%s] FlightAssistant created', faName)
+    fmtInfo('[%s] FlightAssistant created', assistantName)
 end
 
 if type(flightAssistantConfig.flightAssistants) == 'table' then
     for name, cfg in pairs(flightAssistantConfig.flightAssistants) do
         if type(cfg) == 'table' then
-            setupFlightAssistant(name, cfg)
+            if type(cfg.requiredExtensions) == 'table' then
+                fmtInfo('[%s] Loading required extensions', name)
+                for _, ext in pairs(cfg.requiredExtensions) do
+                    requireExtension(ext)
+                end
+            end
+            setupAssistant(name, cfg)
         end
     end
 end

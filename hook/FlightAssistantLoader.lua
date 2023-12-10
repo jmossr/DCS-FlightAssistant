@@ -13,8 +13,43 @@ do
     local scriptsDir = lfs.writedir() .. 'Scripts\\'
     local flightAssistantDir = scriptsDir .. 'FlightAssistant\\'
     local scriptFile = flightAssistantDir .. 'FlightAssistant.lua'
-    local extensionsDir = flightAssistantDir .. 'extensions\\'
+    local extensionsDirName = 'extensions'
+    local extensionsDir = flightAssistantDir .. extensionsDirName .. '\\'
 
+    local logSubsystemName = 'FLIGHTASSISTANT_LOADER'
+
+    local function collectAssistants()
+        local flightAssistants = {}
+        local smatch = string.match
+        local skip
+        local assistantConfigFile
+        for entry in lfs.dir(flightAssistantDir) do
+            skip = smatch(entry, '^%.+$') or smatch(entry, '^' .. extensionsDirName .. '$') or smatch(entry, '.*%.[Ll][Uu][Aa]$') or smatch(entry, '.*%.[Tt][Xx][Tt]$')
+            if not skip then
+                assistantConfigFile = flightAssistantDir .. entry .. '\\' .. entry .. "-config.lua"
+                local f, err = loadfile(assistantConfigFile)
+                if f then
+                    local assistantConfigTable = {}
+                    setfenv(f, assistantConfigTable)
+                    local ok, r = pcall(f)
+                    if ok then
+                        flightAssistants[entry] = assistantConfigTable
+                    else
+                        log.write(logSubsystemName, log.ERROR, 'Failed to load assistant config file ' .. assistantConfigFile .. ': ' .. (r or '?'))
+                    end
+                elseif DEBUG then
+                    log.write(logSubsystemName, log.INFO, 'Failed to load file ' .. assistantConfigFile .. ': ' .. (err or '?'))
+                end
+            elseif DEBUG then
+                log.write(logSubsystemName, log.INFO, 'Skipping ' .. entry .. ' while looking for assistants')
+            end
+        end
+        return flightAssistants
+    end
+
+    --[[------
+        Configuration
+    --------]]
     local config = {
         -- General - required
         --===================--
@@ -30,48 +65,28 @@ do
         -- Debug player unit specific code
         debugUnit = @FA_DEBUG_UNIT@,
 
+        -- System - optional
+        --===================--
         logSubsystemName = 'FLIGHTASSISTANT',
 
         extensionsDir = extensionsDir,
-        extensions = { @FA_EXTENSIONS@ },
 
-        flightAssistants = {
-            --[[----
-            -- FlightAssistant
-            --     The name (key) must match an existing directory name in Saved Games\DCS[.variant_suffix]\Scripts\FlightAssistant
-            --     From that directory unit specific lua code will be loaded if available.
-            --
-            --     You can configure the following attributes:
-            --
-            --    - pUnitFallbackTable       : Default value: {} (i.e. an empty table)
-            --                                 Specifies which alternative can be used for a unit. For example, specifying
-            --                                 table { ['P-51D-30-NA'] = 'P-51D-25-NA',
-            --                                         ['P-51D-25-NA'] = 'P-51D' }
-            --                                 instructs FlightAssistant to try and load file
-            --                                 'Saved Games\DCS[.variant_suffix]\Scripts\FlightAssistant\<flightassistant_name>]\P-51D-25-NA.lua'
-            --                                 when P-51D-30-NA.lua is not available in that directory.
-            --                                 Similarly, FlightAssistant will try to load file
-            --                                 'Saved Games\DCS[.variant_suffix]\Scripts\FlightAssistant\<flightassistant_name>]\P-51D.lua'
-            --                                 if P-51D-25-NA.lua is not available.
-            --
-            --    - reloadOnMissionLoad      : Reloads all unit specific code when a new mission is loaded.
-            ----]]--
+        --[[------
+        -- Lower and upper boundary for all possible values that may be returned
+        -- by event sources. This includes for example device argument values or
+        -- device command values. Default these boundary values are set to -1000000 and 1000000.
+        -- Uncomment if another range is required.
+        --------]]
 
-            @FA_NAME@ = {
-                pUnitFallbackTable = { ['P-51D-30-NA'] = 'P-51D-25-NA',
-                                       ['P-51D-25-NA'] = 'P-51D',
-                                       ['P-51D'] = 'TF-51D',
-                                       ['SpitfireLFMkIXCW'] = 'SpitfireLFMkIX'},
-                reloadOnMissionLoad = @FA_RELOAD_UNIT@,
-            },
-        }
+        --absoluteMinimumEventValue = -1000000,
+        --absoluteMaximumEventValue = 1000000,
 
+        flightAssistants = collectAssistants(),
     }
 
     --[[------
         Load
     --------]]
-    local logSubsystemName = 'FLIGHTASSISTANT_LOADER'
     local lua, err = loadfile(scriptFile)
     if not lua then
         log.write(logSubsystemName, log.ERROR, 'Loading ' .. scriptFile .. ' FAILED: ' .. err)

@@ -1,4 +1,4 @@
-local flightAssistant = ...
+local flightAssistant = getfenv(1)
 local fire = flightAssistant.fire
 local getTrimmedTableId = flightAssistant.getTrimmedTableId
 local fmtError = flightAssistant.fmtError
@@ -27,7 +27,7 @@ local function fireCallback(action, ...)
         if not ran then
             action.disabled = true
             local pUnit = action.pUnit
-            fmtWarning('[%s][%s] %s generated an error and will be disabled. ERROR: %s', pUnit.faname, pUnit.name, tostring(action.name), err or '?')
+            fmtWarning('[%s][%s] %s generated an error and will be disabled. ERROR: %s', pUnit.assistantName, pUnit.name, tostring(action.name), err or '?')
         end
     end
 end
@@ -74,18 +74,18 @@ local function deactivatePUnit(pUnit)
     fireSimCallback(pUnit, 'onUnitDeactivating')
 end
 
-local function tryLoadPUnit(fa, name, initPUnitExtensions)
-    local faname = fa.name
-    local path = fa.flightAssistantDir .. name .. '.lua'
+local function tryLoadPUnit(assistant, name, initPUnitExtensions)
+    local assistantName = assistant.name
+    local path = assistant.assistantDir .. name .. '.lua'
     local f, err = loadfile(path)
     if not f then
         if isDebugEnabled then
-            fmtInfo('[%s] Failed to load %s: %s', faname, path, err or '?')
+            fmtInfo('[%s] Failed to load %s: %s', assistantName, path, err or '?')
         end
         return nil
     else
         local pUnit = {
-            faname = faname,
+            assistantName = assistantName,
             name = name,
             callbackActions = {},
         }
@@ -95,16 +95,16 @@ local function tryLoadPUnit(fa, name, initPUnitExtensions)
             pUnit = name,
             logger = {
                 error = function(msg)
-                    fmtError('[%s][%s] %s', faname, name, msg)
+                    fmtError('[%s][%s] %s', assistantName, name, msg)
                 end,
                 warning = function(msg)
-                    fmtWarning('[%s][%s] %s', faname, name, msg)
+                    fmtWarning('[%s][%s] %s', assistantName, name, msg)
                 end,
                 info = function(msg)
-                    fmtInfo('[%s][%s] %s', faname, name, msg)
+                    fmtInfo('[%s][%s] %s', assistantName, name, msg)
                 end,
-                debug = fa.debugUnit and function(msg)
-                    fmtInfo('[%s][%s] %s', faname, name, msg)
+                debug = assistant.debugUnit and function(msg)
+                    fmtInfo('[%s][%s] %s', assistantName, name, msg)
                 end or NOOP,
             },
             printTable = printTable,
@@ -124,13 +124,13 @@ local function tryLoadPUnit(fa, name, initPUnitExtensions)
                 paddSimCallback(pUnit, 'onSimulationFrame', callbackf)
             end,
 
-            isSimulationPaused = fa.isSimulationPaused,
-            flightAssistantName = faname,
-            unitConfig = fa.pUnitConfig,
+            isSimulationPaused = assistant.isSimulationPaused,
+            flightAssistantName = assistantName,
+            unitConfig = assistant.pUnitConfig,
         }
         pUnit.proxy = proxy
         proxy.include = function(libName, ...)
-            fa.include(libName, proxy, unpack(arg))
+            assistant.include(libName, proxy, unpack(arg))
         end
         if type(initPUnitExtensions) == 'table' then
             for _, initPUnit in pairs(initPUnitExtensions) do
@@ -141,15 +141,15 @@ local function tryLoadPUnit(fa, name, initPUnitExtensions)
         setmetatable(proxy, { __index = _G })
         setfenv(f, proxy)
         pUnit.init = true
-        local ran, merr = pcall(f, name, faname)
+        local ran, merr = pcall(f, name, assistantName)
         pUnit.init = false
         if ran then
             if isDebugEnabled then
-                fmtInfo('[%s] PUnit %s loaded', faname, name)
+                fmtInfo('[%s] PUnit %s loaded', assistantName, name)
             end
             return pUnit
         else
-            fmtWarning('[%s] Failed to load pUnit %s: %s', faname, name, merr or '?')
+            fmtWarning('[%s] Failed to load pUnit %s: %s', assistantName, name, merr or '?')
             return nil
         end
     end
