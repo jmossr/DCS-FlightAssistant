@@ -263,8 +263,7 @@ end
     --Export.GetDevice(device):get_argument_value(arg)
 ------]]--
 local function getDeviceArgumentValue(deviceId, argId)
-    local device = XGetDevice(deviceId)
-    return device:get_argument_value(argId)
+    return XGetDevice(deviceId):get_argument_value(argId)
 end
 local pgetDeviceArgumentValue
 if isDebugUnitEnabled then
@@ -273,9 +272,11 @@ if isDebugUnitEnabled then
         checkArgType('getDeviceArgumentValue(device, arg)', 'arg', argId, 'number', true, 2)
         local device = XGetDevice(deviceId)
         if not device then
-            error('Export.GetDevice(' .. deviceId .. '): no device found')
-        else
+            error('getDeviceArgumentValue(' .. deviceId .. ', ' .. argId .. ') no such device', 2)
+        elseif device.get_argument_value then
             return device:get_argument_value(argId)
+        else
+            error('getDeviceArgumentValue(' .. deviceId .. ', ' .. argId .. ') device does not support inspecting argument values', 2)
         end
     end
 end
