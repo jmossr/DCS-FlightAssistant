@@ -5,19 +5,81 @@ local isDebugEnabled = flightAssistant.isDebugEnabled
 
 local LoGetModelTime = Export.LoGetModelTime
 local LoGetADIPitchBankYaw = Export.LoGetADIPitchBankYaw
+local LoGetIndicatedAirSpeed = Export.LoGetIndicatedAirSpeed
 local LoSetCommand = Export.LoSetCommand
 local LoGetAngleOfSideSlip = Export.LoGetAngleOfSideSlip
+local LoGetVerticalVelocity = Export.LoGetVerticalVelocity
 
 local MODE_LEVEL = 1
 local MODE_BANK = 2
 local MODE_CUSTOM = 3
 
+local function limitValueChangeSpeed(currentValue, targetValue, maxChangePerSecond, deltaTime)
+    local maxDeltaOutput = deltaTime * maxChangePerSecond
+    local outputLimLow = currentValue - maxDeltaOutput
+    local outputLimHigh = currentValue + maxDeltaOutput
+    return (targetValue < outputLimLow and outputLimLow) or (targetValue > outputLimHigh and outputLimHigh) or targetValue
+end
+
+local function createPitchSpeedOverrideControl(pitchControl, minimumSpeed, maxPitchChangePerSecond, errorP, vvErrorP)
+    local minimumIndicatedSpeed = minimumSpeed or 70
+    local pitchUpSpeed = minimumIndicatedSpeed * 1.3
+    local baseControl = pitchControl
+    local indicatedSpeed
+    local error
+    local overrideActive
+    local requestedPitch = pitchControl.getTarget()
+    local targetPitch
+    local referencePitch
+    local speedP = errorP or 0.1
+    local vvP = vvErrorP or 0.001
+    local vvReferencePitch
+    local maxTargetChangePerSecond = maxPitchChangePerSecond or 0.03
+
+    local function setTarget(pitch)
+        requestedPitch = pitch;
+    end
+
+    local function process(pitch, deltaTime, stateTable)
+        indicatedSpeed = stateTable.indicatedSpeed
+        error = indicatedSpeed - minimumIndicatedSpeed
+        if error < 0 then
+            if not overrideActive then
+                overrideActive = true
+                referencePitch = stateTable.pitch
+                vvReferencePitch = nil
+            end
+            targetPitch = referencePitch + error * speedP
+        elseif overrideActive then
+            if indicatedSpeed > pitchUpSpeed then
+                targetPitch = limitValueChangeSpeed(targetPitch, requestedPitch, maxTargetChangePerSecond, deltaTime)
+            else
+                if not vvReferencePitch then
+                    vvReferencePitch = targetPitch
+                end
+                targetPitch = limitValueChangeSpeed(targetPitch, vvReferencePitch - stateTable.verticalVelocity * vvP, maxTargetChangePerSecond, deltaTime)
+            end
+            if targetPitch >= requestedPitch then
+                overrideActive = false
+                targetPitch = requestedPitch
+            end
+        else
+            targetPitch = requestedPitch
+        end
+        baseControl.setTarget(targetPitch)
+        return baseControl.process(pitch, deltaTime)
+    end
+    return {
+        process = process,
+        setTarget = setTarget,
+        reset = baseControl.reset
+    }
+end
 local function createAutopilot(minSampleTime, altitudeControl, pitchControl, bankControl, rudderControl)
     local maxSampleTime = minSampleTime * 50
     local lastSampleTime = 0
     local lastLogTime = 0
     local time, deltaTime
-    local pitch, bank
     local pitchInput, rollInput, rudderInput
     local setAltitudeTarget = altitudeControl and altitudeControl.setTarget
     local processAltitude = altitudeControl and altitudeControl.process
@@ -30,6 +92,15 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
     local processSideSlip = rudderControl and rudderControl.process
     local resetRudderControl = rudderControl and rudderControl.reset
     local mode
+    local stateTable = { selfData = nil, pitch = 0, bank = 0, yaw = 0, sideSlipAngle = 0, verticalVelocity = 0, indicatedSpeed = 0 }
+
+    local function prepareStateTable(selfData)
+        stateTable.selfData = selfData
+        stateTable.pitch, stateTable.bank, stateTable.yaw = LoGetADIPitchBankYaw()
+        stateTable.sideSlipAngle = LoGetAngleOfSideSlip()
+        stateTable.verticalVelocity = LoGetVerticalVelocity()
+        stateTable.indicatedSpeed = LoGetIndicatedAirSpeed()
+    end
 
     local function reset()
         lastSampleTime = 0
@@ -53,16 +124,16 @@ local function createAutopilot(minSampleTime, altitudeControl, pitchControl, ban
                 lastSampleTime = time
             elseif deltaTime > minSampleTime then
                 lastSampleTime = time
-                pitch, bank, _ = LoGetADIPitchBankYaw()
+                prepareStateTable(selfData, deltaTime)
                 if processAltitude then
-                    setPitchTarget(processAltitude(selfData.Position.y, deltaTime))
+                    setPitchTarget(processAltitude(selfData.Position.y, deltaTime, stateTable))
                 end
-                pitchInput = processPitch(pitch, deltaTime)
-                rollInput = processBank(bank, deltaTime)
+                pitchInput = processPitch(stateTable.pitch, deltaTime, stateTable)
+                rollInput = processBank(stateTable.bank, deltaTime, stateTable)
                 LoSetCommand(2001, pitchInput)
                 LoSetCommand(2002, rollInput)
                 if processSideSlip then
-                    rudderInput = processSideSlip(LoGetAngleOfSideSlip(), deltaTime)
+                    rudderInput = processSideSlip(stateTable.sideSlipAngle, deltaTime, stateTable)
                     LoSetCommand(2003, rudderInput)
                 end
             else
@@ -136,6 +207,7 @@ end
 
 local function initPUnit(_, proxy)
     proxy.createAutopilot = createAutopilot
+    proxy.createPitchSpeedOverrideControl = createPitchSpeedOverrideControl
 end
 
 return { initPUnit = initPUnit }
