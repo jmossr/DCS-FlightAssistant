@@ -50,7 +50,7 @@ local function createPDiController(p, d, i, diCutOff, minOutput, maxOutput, maxO
         lastError = error
         error = target - value
         errorChangeSpeed = (error - lastError) / deltaTime
-        if errorChangeSpeed > -diCutOff and errorChangeSpeed < diCutOff then
+        if not diCutOff or errorChangeSpeed > -diCutOff and errorChangeSpeed < diCutOff then
             accumError = accumError + error * deltaTime
         else
             accumError = 0
@@ -71,7 +71,7 @@ local function createPDiController(p, d, i, diCutOff, minOutput, maxOutput, maxO
         output = limitOutput(pdiValue, deltaTime)
 
         if logStatePrefix then
-            fmtInfo('%s error; de/dt; accum; raw; out; target: %s; %s; %s; %s; %s; %s', logStatePrefix, error, errorChangeSpeed, accumError, pdiValue, output, target)
+            fmtInfo('%s error; dt; de/dt; accum; raw; out; target: %s; %s; %s; %s; %s; %s; %s', logStatePrefix, error, deltaTime, errorChangeSpeed, accumError, pdiValue, output, target)
         end
         return output
     end

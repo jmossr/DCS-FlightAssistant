@@ -94,17 +94,17 @@ local function tryLoadPUnit(assistant, name, initPUnitExtensions)
         local proxy = {
             pUnit = name,
             logger = {
-                error = function(msg)
-                    fmtError('[%s][%s] %s', assistantName, name, msg)
+                error = function(msg, ...)
+                    fmtError('[%s][%s] ' .. msg, assistantName, name, unpack(arg))
                 end,
-                warning = function(msg)
-                    fmtWarning('[%s][%s] %s', assistantName, name, msg)
+                warning = function(msg, ...)
+                    fmtWarning('[%s][%s] ' .. msg, assistantName, name, unpack(arg))
                 end,
-                info = function(msg)
-                    fmtInfo('[%s][%s] %s', assistantName, name, msg)
+                info = function(msg, ...)
+                    fmtInfo('[%s][%s] '..msg, assistantName, name, unpack(arg))
                 end,
-                debug = assistant.debugUnit and function(msg)
-                    fmtInfo('[%s][%s] %s', assistantName, name, msg)
+                debug = assistant.debugUnit and function(msg, ...)
+                    fmtInfo('[%s][%s] '..msg, assistantName, name, unpack(arg))
                 end or NOOP,
             },
             printTable = printTable,
