@@ -160,6 +160,22 @@ local function getMissionPlayerUnitID()
     return executeLuaInServerOrMissionEnv('do local unit = world.getPlayer(); return unit and unit:getID() or nil; end')
 end
 
+local function listCockpitParams()
+    return executeLuaIn('export', 'return list_cockpit_params()')
+end
+
+local function listIndication(d)
+    return executeLuaIn('export', 'return list_indication(' .. d .. ')')
+end
+
+local plistIndication
+if isDebugUnitEnabled then
+    plistIndication = function(d)
+        checkPositiveNumberArg('listIndication(d)', 'd', d, true, 2)
+        return listIndication(d)
+    end
+end
+
 local function setUserFlag(flag, value)
     return executeLuaInServerOrMissionEnv('trigger.action.setUserFlag("' .. flag .. '", ' .. (value or 1) .. ')')
 end
@@ -317,7 +333,7 @@ local function checkDeviceArgumentInspectors(pUnit)
                 inspector.lastValue = argValue
                 fire(inspector.observers, argValue, oldValue, deviceId, argId)
             elseif isDebugEnabled and inspector.debug then
-                    fmtInfo("device %s, argument %s value = %s", deviceId, argId, argValue)
+                fmtInfo("device %s, argument %s value = %s", deviceId, argId, argValue)
             end
         end
     end
@@ -380,11 +396,11 @@ if builderLib then
         return builder:build()
     end
 
-   --[[------
-        -- outText action builder extension
-    ------]]--
+    --[[------
+         -- outText action builder extension
+     ------]]--
     local buildWithTxtAction = function(builder, text, displayTime, clearView)
-        local actionId = 'outText(' ..  text .. ')'
+        local actionId = 'outText(' .. text .. ')'
         local pUnit = builder.pUnit
         builder.actionId = actionId
         builder.buildActionCb = function()
@@ -395,11 +411,11 @@ if builderLib then
         return builder:build()
     end
 
-   --[[------
-        -- textToOwnShip action builder extension
-    ------]]--
+    --[[------
+         -- textToOwnShip action builder extension
+     ------]]--
     local buildWithTxtToOwnShipAction = function(builder, text, displayTime, clearView)
-        local actionId = 'textToOwnShip(' ..  text .. ')'
+        local actionId = 'textToOwnShip(' .. text .. ')'
         local pUnit = builder.pUnit
         local pUnitProxy = pUnit.proxy
         builder.actionId = actionId
@@ -429,17 +445,17 @@ if builderLib then
             proxy.outTextForUnit = function(unitId, text, displayTime, clearView)
                 checkArgType('outTextForUnit(unitId, text, displayTime, clearView)', 'unitId', unitId, 'number', true, 2)
                 checkArgType('outTextForUnit(unitId, text, displayTime, clearView)', 'text', text, 'string', true, 2)
-                checkPositiveNumberArg('outTextForUnit(unitId, text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                checkPositiveNumberArg('outTextForUnit(unitId, text, displayTime, clearView)', 'displayTime', displayTime, false, 2)
                 buildWithTxtForUnitAction(builder, unitId, text, displayTime, clearView)
             end
             proxy.outText = function(text, displayTime, clearView)
                 checkArgType('outText(text, displayTime, clearView)', 'text', text, 'string', true, 2)
-                checkPositiveNumberArg('outText(text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                checkPositiveNumberArg('outText(text, displayTime, clearView)', 'displayTime', displayTime, false, 2)
                 buildWithTxtAction(builder, text, displayTime, clearView)
             end
             proxy.textToOwnShip = function(text, displayTime, clearView)
                 checkArgType('textToOwnShip(text, displayTime, clearView)', 'text', text, 'string', true, 2)
-                checkPositiveNumberArg('textToOwnShip(text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                checkPositiveNumberArg('textToOwnShip(text, displayTime, clearView)', 'displayTime', displayTime, false, 2)
                 buildWithTxtToOwnShipAction(builder, text, displayTime, clearView)
             end
         end
@@ -485,6 +501,8 @@ local proxyExtension = {
     outTextForUnit = poutTextForUnit or outTextForUnit,
     outText = poutText or outText,
     getDeviceArgumentValue = pgetDeviceArgumentValue or getDeviceArgumentValue,
+    listCockpitParams = listCockpitParams,
+    listIndication = plistIndication or listIndication,
 }
 
 local function initPUnit(pUnit, proxy)
@@ -500,7 +518,7 @@ local function initPUnit(pUnit, proxy)
         pUnit.deviceInspectors = {}
         copyAll(proxyExtension, proxy)
         proxy.getMissionPlayerUnitID = getMissionPUnitID
-        proxy.textToOwnShip = function (text, displayTime, clearView)
+        proxy.textToOwnShip = function(text, displayTime, clearView)
             local id = getMissionPUnitID()
             if id then
                 outTextForUnit(id, text, displayTime, clearView)
