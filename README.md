@@ -3,9 +3,9 @@
 The goal of this project is to build aircraft specific assistants for
 DCS world.
 FlightAssistant hooks into DCS by installing it in
-Saved Games\DCS[.variant_suffix]\Scripts\FlightAssistant
+Saved Games\DCS\Scripts\FlightAssistant
 and placing one file, FlightAssistantLoader.lua, in
-Saved Games\DCS[.variant_suffix]\Scripts\Hooks
+Saved Games\DCS\Scripts\Hooks
 
 
 ## TF-51D/P-51D and Spitfire Autopilot
@@ -19,11 +19,11 @@ pilot to set and trim.
 
 ### Installation
 Extract the files from the zip-archive into your
-Saved Games\DCS[.variant_suffix]\Scripts folder.
+Saved Games\DCS\Scripts folder.
 
-When ready, in Saved Games\DCS[.variant_suffix]\Scripts you should see a folder
+When ready, in Saved Games\DCS\Scripts you should see a folder
 'FlightAssistant'.
-Folder Saved Games\DCS[.variant_suffix]\Scripts\Hooks should contain
+Folder Saved Games\DCS\Scripts\Hooks should contain
 FlightAssistantLoader.lua and maybe more files from other mods.
 
 

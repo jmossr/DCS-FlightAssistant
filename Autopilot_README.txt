@@ -1,10 +1,10 @@
 ### Installation
 Extract the files from the zip-archive into your
-Saved Games\DCS[.variant_suffix]\Scripts folder.
+Saved Games\DCS\Scripts folder.
 
-When ready, in Saved Games\DCS[.variant_suffix]\Scripts you should see a folder
+When ready, in Saved Games\DCS\Scripts you should see a folder
 'FlightAssistant'.
-Folder Saved Games\DCS[.variant_suffix]\Scripts\Hooks should contain
+Folder Saved Games\DCS\Scripts\Hooks should contain
 FlightAssistantLoader.lua and maybe more files from other mods.
 
 
