@@ -19,14 +19,20 @@ return { test = function()
     checkEvents('B')
 
     expect('Export.LoGetSelfData').andReturn(selfData)
-    expect('Export.GetDevice(25)').andReturn({ get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('Export.GetDevice(25)').andReturn({
+        update_arguments = function()  checkEvent("update_arguments"); end,
+        get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('update_arguments')
     expect('getDeviceArgumentValue(3001)').andReturn(0.05)
     expect('onSimulationFrame')
     fireUserCallback('onSimulationFrame')
     checkEvents('C')
 
     expect('Export.LoGetSelfData').andReturn(selfData)
-    expect('Export.GetDevice(25)').andReturn({ get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('Export.GetDevice(25)').andReturn({
+        update_arguments = function()  checkEvent("update_arguments"); end,
+        get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('update_arguments')
     expect('getDeviceArgumentValue(3001)').andReturn(0.101)
     expect('!!!0.101 >= 0.1')
     expect('onSimulationFrame')
@@ -34,7 +40,10 @@ return { test = function()
     checkEvents('D')
 
     expect('Export.LoGetSelfData').andReturn(selfData)
-    expect('Export.GetDevice(25)').andReturn({ get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('Export.GetDevice(25)').andReturn({
+        update_arguments = function()  checkEvent("update_arguments"); end,
+        get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('update_arguments')
     expect('getDeviceArgumentValue(3001)').andReturn(0.111)
     expect('onSimulationFrame')
     fireUserCallback('onSimulationFrame')
