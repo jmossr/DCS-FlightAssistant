@@ -19,7 +19,10 @@ return { test = function()
     checkEvents('B')
 
     expect('Export.LoGetSelfData').andReturn(selfData)
-    expect('Export.GetDevice(25)').andReturn({ get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('Export.GetDevice(25)').andReturn({
+        update_arguments = function()  checkEvent("update_arguments"); end,
+        get_argument_value = function(_, a) return checkEvent('getDeviceArgumentValue(' .. a .. ')'); end, })
+    expect('update_arguments')
     expect('getDeviceArgumentValue(3001)').andReturn(42)
     expect('!!!42')
     expect('onSimulationFrame')

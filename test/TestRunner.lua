@@ -236,7 +236,7 @@ local testCases = {
     'DCSCallsTextToOwnShipTest',
     'DCSCallsTextToOwnShipActionBuilderTest',
     'DCSCallsStartListenCommandTest',
-    'DCSCallsPerformClickableCommandTest',
+    'DCSCallsPerformClickableActionTest',
     'DCSCallsValueAboveBuilderTest',
     'DCSCallsValueBelowBuilderTest',
     'UnitLoggerTest',

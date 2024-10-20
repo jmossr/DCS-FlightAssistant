@@ -1,11 +1,11 @@
 --[[--------
 	FlightAssistant loader
 
-	Place this file in 'Saved Games\DCS[.variant_suffix]\Scripts\Hooks' to enable Flight Assistant.
+	Place this file in 'Saved Games\DCS\Scripts\Hooks' to enable Flight Assistant.
 
 	Requires at least the following files:
-	- Saved Games\DCS[.variant_suffix]\Scripts\FlightAssistant\FlightAssistant.lua
-	- Saved Games\DCS[.variant_suffix]\Scripts\FlightAssistant\pUnit.lua
+	- Saved Games\DCS\Scripts\FlightAssistant\FlightAssistant.lua
+	- Saved Games\DCS\Scripts\FlightAssistant\pUnit.lua
 
 ------------]]
 do

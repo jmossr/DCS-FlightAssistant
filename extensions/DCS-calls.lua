@@ -50,12 +50,12 @@
        numberOfHits : number of hits to record before setting the flag value to 1; default 1
 
     --
-    performClickableCommand(device, command [, value]) : execute a clickable command
+    performClickableAction(device, command [, value]) : execute a clickable command
                         For example, to execute pressing and releasing the UFC A/P button in the F/A-18, you would
                         call:
-                        performClickableCommand(25, 3001, 1) --depress the A/P button
+                        performClickableAction(25, 3001, 1) --depress the A/P button
                         and then, a few tens of seconds later
-                        performClickableCommand(25, 3001, 0) -- release the A/P button
+                        performClickableAction(25, 3001, 0) -- release the A/P button
        device   : device number
        command  : command number to execute
        value    : value to set; default 1
@@ -82,7 +82,7 @@
     ----
 
     <onSomeEvent>.setUserFlag(flag [, value])
-    <onSomeEvent>.performClickableCommand(device, command [, value])
+    <onSomeEvent>.performClickableAction(device, command [, value])
     <onSomeEvent>.outTextForUnit(unitId, text, displayTime [, clearView])
     <onSomeEvent>.outText(text, displayTime [, clearView])
 
@@ -109,6 +109,10 @@ local checkArgType = flightAssistant.checkArgType
 local checkStringOrNumberArg = flightAssistant.checkStringOrNumberArg
 local checkPositiveNumberArg = flightAssistant.checkPositiveNumberArg
 local copyAll = flightAssistant.copyAll
+local use_a_cockpit_perform_clickable_action = flightAssistant.flightAssistantConfig
+        and flightAssistant.flightAssistantConfig.DCSCalls
+        and flightAssistant.flightAssistantConfig.DCSCalls.use_a_cockpit_perform_clickable_action
+        or false
 
 local function executeLuaIn(env, lua)
     local ret, success = dostring_in(env, lua)
@@ -160,6 +164,22 @@ local function getMissionPlayerUnitID()
     return executeLuaInServerOrMissionEnv('do local unit = world.getPlayer(); return unit and unit:getID() or nil; end')
 end
 
+local function listCockpitParams()
+    return executeLuaIn('export', 'return list_cockpit_params()')
+end
+
+local function listIndication(d)
+    return executeLuaIn('export', 'return list_indication(' .. d .. ')')
+end
+
+local plistIndication
+if isDebugUnitEnabled then
+    plistIndication = function(d)
+        checkPositiveNumberArg('listIndication(d)', 'd', d, true, 2)
+        return listIndication(d)
+    end
+end
+
 local function setUserFlag(flag, value)
     return executeLuaInServerOrMissionEnv('trigger.action.setUserFlag("' .. flag .. '", ' .. (value or 1) .. ')')
 end
@@ -207,22 +227,29 @@ if isDebugUnitEnabled then
     end
 end
 
-local function performClickableCommand(deviceId, commandId, value)
-    return executeLuaInServerOrMissionEnv('a_cockpit_perform_clickable_action(' .. deviceId .. ', ' .. commandId .. ', ' .. (value or 1) .. ')')
+local performClickableAction
+if use_a_cockpit_perform_clickable_action then
+    performClickableAction = function(deviceId, commandId, value)
+        return executeLuaInServerOrMissionEnv('a_cockpit_perform_clickable_action(' .. deviceId .. ', ' .. commandId .. ', ' .. (value or 1) .. ')')
+    end
+else
+    performClickableAction = function(deviceId, commandId, value)
+        return XGetDevice(deviceId):performClickableAction(commandId, (value or 1))
+    end
 end
 
-local pperformClickableCommand
-local checkPerformClickableCommandArgs
+local pperformClickableAction
+local checkPerformClickableActionArgs
 if isDebugUnitEnabled then
-    checkPerformClickableCommandArgs = function(deviceId, commandId, value, errorLevel)
+    checkPerformClickableActionArgs = function(deviceId, commandId, value, errorLevel)
         local lvl = errorLevel + 1
-        checkArgType('performClickableCommand(device, command, value)', 'device', deviceId, 'number', true, lvl)
-        checkArgType('performClickableCommand(device, command, value)', 'command', commandId, 'number', true, lvl)
-        checkArgType('performClickableCommand(device, command, value)', 'value', value, 'number', false, lvl)
+        checkArgType('performClickableAction(device, command, value)', 'device', deviceId, 'number', true, lvl)
+        checkArgType('performClickableAction(device, command, value)', 'command', commandId, 'number', true, lvl)
+        checkArgType('performClickableAction(device, command, value)', 'value', value, 'number', false, lvl)
     end
-    pperformClickableCommand = function(deviceId, command, value)
-        checkPerformClickableCommandArgs(deviceId, command, value, 2)
-        return performClickableCommand(deviceId, command, value)
+    pperformClickableAction = function(deviceId, command, value)
+        checkPerformClickableActionArgs(deviceId, command, value, 2)
+        return performClickableAction(deviceId, command, value)
     end
 end
 
@@ -263,7 +290,9 @@ end
     --Export.GetDevice(device):get_argument_value(arg)
 ------]]--
 local function getDeviceArgumentValue(deviceId, argId)
-    return XGetDevice(deviceId):get_argument_value(argId)
+    local device = XGetDevice(deviceId)
+    device:update_arguments()
+    return device:get_argument_value(argId)
 end
 local pgetDeviceArgumentValue
 if isDebugUnitEnabled then
@@ -274,6 +303,9 @@ if isDebugUnitEnabled then
         if not device then
             error('getDeviceArgumentValue(' .. deviceId .. ', ' .. argId .. ') no such device', 2)
         elseif device.get_argument_value then
+            if device.update_arguments then
+                device:update_arguments()
+            end
             return device:get_argument_value(argId)
         else
             error('getDeviceArgumentValue(' .. deviceId .. ', ' .. argId .. ') device does not support inspecting argument values', 2)
@@ -307,6 +339,7 @@ local function checkDeviceArgumentInspectors(pUnit)
     local oldValue
     for deviceId, argInspectors in pairs(pUnit.deviceInspectors) do
         device = XGetDevice(deviceId)
+        device:update_arguments()
         for argId, inspector in pairs(argInspectors) do
             argValue = device:get_argument_value(argId)
             oldValue = inspector.lastValue
@@ -317,7 +350,7 @@ local function checkDeviceArgumentInspectors(pUnit)
                 inspector.lastValue = argValue
                 fire(inspector.observers, argValue, oldValue, deviceId, argId)
             elseif isDebugEnabled and inspector.debug then
-                    fmtInfo("device %s, argument %s value = %s", deviceId, argId, argValue)
+                fmtInfo("device %s, argument %s value = %s", deviceId, argId, argValue)
             end
         end
     end
@@ -350,7 +383,7 @@ if builderLib then
     end
 
     --[[------
-        -- performClickableCommand action builder extension
+        -- performClickableAction action builder extension
     ------]]--
     local buildWithCmdAction = function(builder, deviceId, command, value)
         local val = value or 1
@@ -359,7 +392,7 @@ if builderLib then
         builder.actionId = actionId
         builder.buildActionCb = function()
             return { pUnit = pUnit, name = actionId, fire = function()
-                performClickableCommand(deviceId, command, value);
+                performClickableAction(deviceId, command, value);
             end }
         end
         return builder:build()
@@ -380,11 +413,11 @@ if builderLib then
         return builder:build()
     end
 
-   --[[------
-        -- outText action builder extension
-    ------]]--
+    --[[------
+         -- outText action builder extension
+     ------]]--
     local buildWithTxtAction = function(builder, text, displayTime, clearView)
-        local actionId = 'outText(' ..  text .. ')'
+        local actionId = 'outText(' .. text .. ')'
         local pUnit = builder.pUnit
         builder.actionId = actionId
         builder.buildActionCb = function()
@@ -395,11 +428,11 @@ if builderLib then
         return builder:build()
     end
 
-   --[[------
-        -- textToOwnShip action builder extension
-    ------]]--
+    --[[------
+         -- textToOwnShip action builder extension
+     ------]]--
     local buildWithTxtToOwnShipAction = function(builder, text, displayTime, clearView)
-        local actionId = 'textToOwnShip(' ..  text .. ')'
+        local actionId = 'textToOwnShip(' .. text .. ')'
         local pUnit = builder.pUnit
         local pUnitProxy = pUnit.proxy
         builder.actionId = actionId
@@ -422,24 +455,25 @@ if builderLib then
                 checkStringOrNumberArg('setUserFlag(flag, value)', 'value', value, false, 2)
                 return buildWithSUFAction(builder, flag, value)
             end
-            proxy.performClickableCommand = function(deviceId, command, value)
-                checkPerformClickableCommandArgs(deviceId, command, value, 2)
+            proxy.performClickableAction = function(deviceId, command, value)
+                checkPerformClickableActionArgs(deviceId, command, value, 2)
                 return buildWithCmdAction(builder, deviceId, command, value)
             end
+            proxy.performClickableCommand = proxy.performClickableAction
             proxy.outTextForUnit = function(unitId, text, displayTime, clearView)
                 checkArgType('outTextForUnit(unitId, text, displayTime, clearView)', 'unitId', unitId, 'number', true, 2)
                 checkArgType('outTextForUnit(unitId, text, displayTime, clearView)', 'text', text, 'string', true, 2)
-                checkPositiveNumberArg('outTextForUnit(unitId, text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                checkPositiveNumberArg('outTextForUnit(unitId, text, displayTime, clearView)', 'displayTime', displayTime, false, 2)
                 buildWithTxtForUnitAction(builder, unitId, text, displayTime, clearView)
             end
             proxy.outText = function(text, displayTime, clearView)
                 checkArgType('outText(text, displayTime, clearView)', 'text', text, 'string', true, 2)
-                checkPositiveNumberArg('outText(text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                checkPositiveNumberArg('outText(text, displayTime, clearView)', 'displayTime', displayTime, false, 2)
                 buildWithTxtAction(builder, text, displayTime, clearView)
             end
             proxy.textToOwnShip = function(text, displayTime, clearView)
                 checkArgType('textToOwnShip(text, displayTime, clearView)', 'text', text, 'string', true, 2)
-                checkPositiveNumberArg('textToOwnShip(text, displayTime, clearView)', 'displayTime', displayTime, true, 2)
+                checkPositiveNumberArg('textToOwnShip(text, displayTime, clearView)', 'displayTime', displayTime, false, 2)
                 buildWithTxtToOwnShipAction(builder, text, displayTime, clearView)
             end
         end
@@ -448,7 +482,7 @@ if builderLib then
             proxy.setUserFlag = function(flag, value)
                 return buildWithSUFAction(builder, flag, value)
             end
-            proxy.performClickableCommand = function(deviceId, command, value)
+            proxy.performClickableAction = function(deviceId, command, value)
                 return buildWithCmdAction(builder, deviceId, command, value)
             end
             proxy.outTextForUnit = function(unitId, text, displayTime, clearView)
@@ -481,10 +515,13 @@ local proxyExtension = {
     setUserFlag = psetUserFlag or setUserFlag,
     getUserFlag = pgetUserFlag or getUserFlag,
     startListenCommand = pstartListenCommand or startListenCommand,
-    performClickableCommand = pperformClickableCommand or performClickableCommand,
+    performClickableAction = pperformClickableAction or performClickableAction,
+    performClickableCommand = pperformClickableAction or performClickableAction,
     outTextForUnit = poutTextForUnit or outTextForUnit,
     outText = poutText or outText,
     getDeviceArgumentValue = pgetDeviceArgumentValue or getDeviceArgumentValue,
+    listCockpitParams = listCockpitParams,
+    listIndication = plistIndication or listIndication,
 }
 
 local function initPUnit(pUnit, proxy)
@@ -500,7 +537,7 @@ local function initPUnit(pUnit, proxy)
         pUnit.deviceInspectors = {}
         copyAll(proxyExtension, proxy)
         proxy.getMissionPlayerUnitID = getMissionPUnitID
-        proxy.textToOwnShip = function (text, displayTime, clearView)
+        proxy.textToOwnShip = function(text, displayTime, clearView)
             local id = getMissionPUnitID()
             if id then
                 outTextForUnit(id, text, displayTime, clearView)
