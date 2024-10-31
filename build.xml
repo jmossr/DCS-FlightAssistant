@@ -32,6 +32,7 @@
             <param name="fa.debug.unit" value="false"/>
             <param name="fa.reload.user.scripts" value="false"/>
             <param name="fa.reload.unit" value="false"/>
+            <param name="fa.enable.envs" value="'DCS Control API'"/>
         </antcall>
     </target>
 
@@ -67,7 +68,7 @@
         <mkdir dir="${hooksdestdir}"/>
     </target>
 
-    <target name="copycore">
+    <target name="copycore" depends="initbuild">
         <copy todir="${flightassistantdestdir}">
             <fileset dir="${coredir}"/>
         </copy>
@@ -92,12 +93,13 @@
         </copy>
     </target>
 
-    <target name="copyhook" if="fa.name">
+    <target name="copyhook" if="fa.name" depends="initbuild">
         <property name="fa.debug" value="true"/>
         <property name="fa.reload.user.scripts" value="true"/>
         <property name="fa.extensions" value="'builder', 'DCS-calls'"/>
         <property name="fa.debug.unit" value="true"/>
         <property name="fa.reload.unit" value="true"/>
+        <property name="fa.enable.envs" value="'DCS Control API'"/>
 
         <echo message="fa.debug = ${fa.debug}"/>
         <echo message="fa.reload.user.scripts = ${fa.reload.user.scripts}"/>
@@ -108,13 +110,17 @@
         <filter token="FA_NAME" value="${fa.name}"/>
         <filter token="FA_DEBUG_UNIT" value="${fa.debug.unit}"/>
         <filter token="FA_RELOAD_UNIT" value="${fa.reload.unit}"/>
+        <filter token="FA_ENABLE_ENVS" value="${fa.enable.envs}"/>
 
         <copy todir="${hooksdestdir}" filtering="true">
             <fileset dir="${hookdir}"/>
         </copy>
+        <copy todir="${flightassistantdestdir}" filtering="true">
+            <fileset dir="${hookdir}"/>
+        </copy>
     </target>
 
-    <target name="copyassistant" if="fa.name">
+    <target name="copyassistant" if="fa.name" depends="initbuild">
         <copy todir="${flightassistantdestdir}">
             <fileset dir="${assistantsdir}" includes="${fa.name}/**"/>
         </copy>

@@ -1,10 +1,13 @@
 --[[--------
 	Flight Assistant
 ------------]]
+local ENV_DCS_CONTROL_API = 'DCS Control API'
+local ENV_LUA_EXPORT = 'LuaExport'
 local type = type
 local tostring = tostring
 local pairs = pairs
 local smatch = string.match
+local sfind = string.find
 local sformat = string.format
 local sgsub = string.gsub
 local tinsert = table.insert
@@ -17,15 +20,15 @@ local flightAssistantConfig = ...
 local config = (flightAssistantConfig and type(flightAssistantConfig) == 'table') and flightAssistantConfig or nil
 local isReloadUserScriptsOnMissionLoad = not config or config.reloadUserScriptsOnMissionLoad
 local logSubsystemName = config and config.logSubsystemName and tostring(config.logSubsystemName) or 'FLIGHTASSISTANT'
+local enableDCSEnvs = config and config.enableDCSEnvs or ENV_DCS_CONTROL_API
 local lwrite = log.write
 local lINFO = log.INFO
 local lWARNING = log.WARNING
 local lERROR = log.ERROR
-local LoGetSelfData = Export.LoGetSelfData
-local LoIsOwnshipExportAllowed = Export.LoIsOwnshipExportAllowed
+local LoGetSelfData = LoGetSelfData or Export and Export.LoGetSelfData or nil
+local LoIsOwnshipExportAllowed = LoIsOwnshipExportAllowed or Export and Export.LoIsOwnshipExportAllowed or nil
 local setfenv = setfenv
 local unpack = unpack
-
 local function clearTable(table)
     if type(table) == 'table' then
         for k, _ in pairs(table) do
@@ -37,6 +40,7 @@ end
 --[[------
     --Install DCS callbacks
 --------]]
+local dcsEnv
 local faCallbacks = {}
 local simulationActive = false
 local simulationPaused = true
@@ -44,57 +48,102 @@ local currentPUnitData
 do
     local executeCallbacks = function(cb)
         for _, cbs in pairs(faCallbacks) do
-            cbs[cb](cbs)
+            cbs[cb]()
         end
     end
-    lwrite(logSubsystemName, lINFO, 'Installing DCS Control API User callbacks')
-    DCS.setUserCallbacks({
-        onMissionLoadBegin = function(_)
+    local callbacks = {
+        onMissionLoadBegin = function()
             simulationPaused = true
             simulationActive = false
             if isReloadUserScriptsOnMissionLoad then
                 FlightAssistant = nil
                 clearTable(faCallbacks)
-                lwrite(logSubsystemName, lINFO, 'Reloading user scripts...')
-                DCS.reloadUserScripts()
+                if DCS then
+                    lwrite(logSubsystemName, lINFO, 'Reloading user scripts...')
+                    DCS.reloadUserScripts()
+                end
             end
             executeCallbacks('onMissionLoadBegin');
         end,
-        onSimulationStart = function(_)
+        onSimulationStart = function()
             simulationPaused = true
             simulationActive = true
             currentPUnitData = LoGetSelfData()
             executeCallbacks('onSimulationStart');
         end,
-        onSimulationStop = function(_)
+        onSimulationStop = function()
             simulationActive = false
             currentPUnitData = nil
             executeCallbacks('onSimulationStop');
         end,
-        onSimulationFrame = function(_)
+        onSimulationFrame = function()
             if simulationActive then
                 currentPUnitData = LoGetSelfData()
             end
             executeCallbacks('onSimulationFrame');
         end,
-        onSimulationPause = function(_)
+        onSimulationPause = function()
             simulationPaused = true
             executeCallbacks('onSimulationPause');
         end,
-        onSimulationResume = function(_)
+        onSimulationResume = function()
             simulationPaused = false
             if simulationActive then
                 currentPUnitData = LoGetSelfData()
             end
             executeCallbacks('onSimulationResume');
         end
-    })
+    }
+    if DCS then
+        dcsEnv = ENV_DCS_CONTROL_API
+        lwrite(logSubsystemName, lINFO, 'Installing DCS Control API User callbacks')
+        DCS.setUserCallbacks(callbacks)
+    else
+        dcsEnv = ENV_LUA_EXPORT
+        isReloadUserScriptsOnMissionLoad = false
+        logSubsystemName = logSubsystemName .. '(E)'
+        lwrite(logSubsystemName, lWARNING, 'Cannot install DCS Control API callbacks: function DCS.setUserCallbacks not found')
+        if _G.LoGetModelTime then
+            lwrite(logSubsystemName, lINFO, 'Installing LuaExport callbacks')
+            if LuaExportStart then
+                local nextLuaExportStart = LuaExportStart
+                LuaExportStart = function()
+                    callbacks.onMissionLoadBegin()
+                    callbacks.onSimulationStart()
+                    nextLuaExportStart()
+                end
+            else
+                LuaExportStart = function()
+                    callbacks.onMissionLoadBegin()
+                    callbacks.onSimulationStart()
+                end
+            end
+            if LuaExportStop then
+                local nextLuaExportStop = LuaExportStop
+                LuaExportStop = function()
+                    callbacks.onSimulationStop()
+                    nextLuaExportStop()
+                end
+            else
+                LuaExportStop = callbacks.onSimulationStop
+            end
+            if LuaExportAfterNextFrame then
+                local nextLuaExportAfterNextFrame = LuaExportAfterNextFrame
+                LuaExportAfterNextFrame = function()
+                    callbacks.onSimulationFrame()
+                    nextLuaExportAfterNextFrame()
+                end
+            else
+                LuaExportAfterNextFrame = callbacks.onSimulationFrame
+            end
+        end
+    end
 end
 --[[------
     Check minimum requirements
 ------]]--
 if not LoIsOwnshipExportAllowed() then
-    error('Access to ownship data is denied on this server. (Export.LoIsOwnshipExportAllowed() == false)')
+    lwrite(logSubsystemName, lWARNING, 'Access to ownship data is denied. (LoIsOwnshipExportAllowed() == false)')
 end
 --[[------
     --Config
@@ -130,6 +179,7 @@ if isDebugEnabled then
     fmtInfo('flightAssistantScriptFile = %s', flightAssistantConfig.flightAssistantScriptFile)
     fmtInfo('flightAssistantScriptDir = %s', flightAssistantScriptDir)
     fmtInfo('extensionsDir = %s', extensionsDir)
+    fmtInfo('enableDCSEnvs = %s', enableDCSEnvs)
 end
 
 --[[------
@@ -543,16 +593,18 @@ local function setupAssistant(assistantName, configTable)
     fmtInfo('[%s] FlightAssistant created', assistantName)
 end
 
-if type(flightAssistantConfig.flightAssistants) == 'table' then
+if type(flightAssistantConfig.flightAssistants) == 'table' and sfind(enableDCSEnvs, dcsEnv) then
     for name, cfg in pairs(flightAssistantConfig.flightAssistants) do
         if type(cfg) == 'table' then
-            if type(cfg.requiredExtensions) == 'table' then
-                fmtInfo('[%s] Loading required extensions', name)
-                for _, ext in pairs(cfg.requiredExtensions) do
-                    requireExtension(ext)
+            if sfind(cfg.dcsEnvs or ENV_DCS_CONTROL_API, dcsEnv) then
+                if type(cfg.requiredExtensions) == 'table' then
+                    fmtInfo('[%s] Loading required extensions', name)
+                    for _, ext in pairs(cfg.requiredExtensions) do
+                        requireExtension(ext)
+                    end
                 end
+                setupAssistant(name, cfg)
             end
-            setupAssistant(name, cfg)
         end
     end
 end

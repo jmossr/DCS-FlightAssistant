@@ -29,7 +29,7 @@
 local tostring = tostring
 local tinsert = table.insert
 local type = type
-local getTime = Export.LoGetModelTime
+local getTime = LoGetModelTime or Export.LoGetModelTime
 local flightAssistant = getfenv(1)
 local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
 local getOptionalExtension = flightAssistant.getOptionalExtension

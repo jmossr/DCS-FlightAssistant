@@ -101,25 +101,38 @@ local fmtWarning = flightAssistant.fmtWarning
 local fmtInfo = fmtWarning and flightAssistant.fmtInfo
 local isDebugEnabled = flightAssistant.isDebugEnabled
 local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
-local dostring_in = net.dostring_in
+local dostring_in = net and net.dostring_in or nil
 local getOptionalExtension = flightAssistant.getOptionalExtension
-local XGetDevice = Export.GetDevice
+local XGetDevice = GetDevice or Export and Export.GetDevice or nil
+local list_cockpit_params = list_cockpit_params or Export and Export.list_cockpit_params or nil
+local list_indication = list_indication or Export and Export.list_indication or nil
+local a_start_listen_command = a_start_listen_command or Export and Export.a_start_listen_command or nil
+local a_cockpit_perform_clickable_action = a_cockpit_perform_clickable_action or Export and Export.a_cockpit_perform_clickable_action or nil
 local fire = flightAssistant.fire
 local checkArgType = flightAssistant.checkArgType
 local checkStringOrNumberArg = flightAssistant.checkStringOrNumberArg
 local checkPositiveNumberArg = flightAssistant.checkPositiveNumberArg
 local copyAll = flightAssistant.copyAll
+local  absoluteMaximumEventValue = flightAssistant.flightAssistantConfig.absoluteMaximumEventValue or 1000000
 local use_a_cockpit_perform_clickable_action = flightAssistant.flightAssistantConfig
         and flightAssistant.flightAssistantConfig.DCSCalls
         and flightAssistant.flightAssistantConfig.DCSCalls.use_a_cockpit_perform_clickable_action
         or false
 
-local function executeLuaIn(env, lua)
-    local ret, success = dostring_in(env, lua)
-    if success then
-        return ret or success, nil
-    else
-        return nil, ret
+local executeLuaIn
+if dostring_in then
+    executeLuaIn = function(env, lua)
+        local ret, success = dostring_in(env, lua)
+        if success then
+            return ret or success, nil
+        else
+            return nil, ret
+        end
+    end
+else
+    fmtWarning('net.dostring_in function is not available')
+    executeLuaIn = function()
+        return nil, 'net.dostring_in function is not available'
     end
 end
 
@@ -164,12 +177,27 @@ local function getMissionPlayerUnitID()
     return executeLuaInServerOrMissionEnv('do local unit = world.getPlayer(); return unit and unit:getID() or nil; end')
 end
 
-local function listCockpitParams()
-    return executeLuaIn('export', 'return list_cockpit_params()')
+local listCockpitParams
+if list_cockpit_params then
+    listCockpitParams = function()
+        return list_cockpit_params()
+    end
+else
+    listCockpitParams = function()
+        return executeLuaIn('export', 'return list_cockpit_params()')
+
+    end
 end
 
-local function listIndication(d)
-    return executeLuaIn('export', 'return list_indication(' .. d .. ')')
+local listIndication
+if list_indication then
+    listIndication = function(d)
+        return list_indication(d)
+    end
+else
+    listIndication = function(d)
+        return executeLuaIn('export', 'return list_indication(' .. d .. ')')
+    end
 end
 
 local plistIndication
@@ -204,10 +232,15 @@ if isDebugUnitEnabled then
         return getUserFlag(flag)
     end
 end
-
-local function startListenCommand(deviceId, commandId, flag, minValue, maxValue, numberOfHits)
-    -- a_start_listen_command(command, flagName, numberOfHits, minValue, maxValue, deviceId)
-    return executeLuaInServerOrMissionEnv('a_start_listen_command(' .. commandId .. ', "' .. flag .. '", ' .. (numberOfHits or 1) .. ', ' .. (minValue or 1) .. ', ' .. (maxValue or 1000000) .. ', ' .. deviceId .. ')')
+local startListenCommand
+if a_start_listen_command then
+    startListenCommand = function(deviceId, commandId, flag, minValue, maxValue, numberOfHits)
+        return a_start_listen_command(commandId, flag, (numberOfHits or 1), (minValue or 1), (maxValue or absoluteMaximumEventValue), deviceId)
+    end
+else
+    startListenCommand = function(deviceId, commandId, flag, minValue, maxValue, numberOfHits)
+        return executeLuaInServerOrMissionEnv('a_start_listen_command(' .. commandId .. ', "' .. flag .. '", ' .. (numberOfHits or 1) .. ', ' .. (minValue or 1) .. ', ' .. (maxValue or absoluteMaximumEventValue) .. ', ' .. deviceId .. ')')
+    end
 end
 
 local pstartListenCommand
@@ -221,7 +254,7 @@ if isDebugUnitEnabled then
         checkArgType('startListenCommand(device, command, flag, minValue, maxValue, numberOfHits)', 'numberOfHits', numberOfHits, 'number', false, 2)
         local res = startListenCommand(deviceId, commandId, flag, minValue, maxValue, numberOfHits)
         if res then
-            fmtInfo("Listening to device %s, command %s, setting flag '%s' when command value between %s and %s after %s hits", deviceId, commandId, flag, minValue or 1, maxValue or 10000, numberOfHits or 1)
+            fmtInfo("Listening to device %s, command %s, setting flag '%s' when command value between %s and %s after %s hits", deviceId, commandId, flag, minValue or 1, maxValue or absoluteMaximumEventValue, numberOfHits or 1)
         end
         return res
     end
@@ -229,8 +262,14 @@ end
 
 local performClickableAction
 if use_a_cockpit_perform_clickable_action then
-    performClickableAction = function(deviceId, commandId, value)
-        return executeLuaInServerOrMissionEnv('a_cockpit_perform_clickable_action(' .. deviceId .. ', ' .. commandId .. ', ' .. (value or 1) .. ')')
+    if a_cockpit_perform_clickable_action then
+        performClickableAction = function(deviceId, commandId, value)
+            return a_cockpit_perform_clickable_action(deviceId, commandId,  (value or 1))
+        end
+    else
+        performClickableAction = function(deviceId, commandId, value)
+            return executeLuaInServerOrMissionEnv('a_cockpit_perform_clickable_action(' .. deviceId .. ', ' .. commandId .. ', ' .. (value or 1) .. ')')
+        end
     end
 else
     performClickableAction = function(deviceId, commandId, value)
@@ -415,7 +454,7 @@ if builderLib then
 
     --[[------
          -- outText action builder extension
-     ------]]--
+    ------]]--
     local buildWithTxtAction = function(builder, text, displayTime, clearView)
         local actionId = 'outText(' .. text .. ')'
         local pUnit = builder.pUnit
@@ -429,8 +468,8 @@ if builderLib then
     end
 
     --[[------
-         -- textToOwnShip action builder extension
-     ------]]--
+        -- textToOwnShip action builder extension
+    ------]]--
     local buildWithTxtToOwnShipAction = function(builder, text, displayTime, clearView)
         local actionId = 'textToOwnShip(' .. text .. ')'
         local pUnit = builder.pUnit
@@ -459,7 +498,7 @@ if builderLib then
                 checkPerformClickableActionArgs(deviceId, command, value, 2)
                 return buildWithCmdAction(builder, deviceId, command, value)
             end
-            proxy.performClickableCommand = proxy.performClickableAction
+            proxy.performClickableCommand = proxy.performClickableAction --backwards compat.
             proxy.outTextForUnit = function(unitId, text, displayTime, clearView)
                 checkArgType('outTextForUnit(unitId, text, displayTime, clearView)', 'unitId', unitId, 'number', true, 2)
                 checkArgType('outTextForUnit(unitId, text, displayTime, clearView)', 'text', text, 'string', true, 2)
@@ -485,6 +524,7 @@ if builderLib then
             proxy.performClickableAction = function(deviceId, command, value)
                 return buildWithCmdAction(builder, deviceId, command, value)
             end
+            proxy.performClickableCommand = proxy.performClickableAction --backwards compat.
             proxy.outTextForUnit = function(unitId, text, displayTime, clearView)
                 buildWithTxtForUnitAction(builder, unitId, text, displayTime, clearView)
             end
@@ -516,7 +556,7 @@ local proxyExtension = {
     getUserFlag = pgetUserFlag or getUserFlag,
     startListenCommand = pstartListenCommand or startListenCommand,
     performClickableAction = pperformClickableAction or performClickableAction,
-    performClickableCommand = pperformClickableAction or performClickableAction,
+    performClickableCommand = pperformClickableAction or performClickableAction, --backwards compat.
     outTextForUnit = poutTextForUnit or outTextForUnit,
     outText = poutText or outText,
     getDeviceArgumentValue = pgetDeviceArgumentValue or getDeviceArgumentValue,

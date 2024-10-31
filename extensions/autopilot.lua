@@ -3,12 +3,12 @@ local isSimulationPaused = flightAssistant.isSimulationPaused
 local fmtInfo = flightAssistant.fmtInfo
 local isDebugEnabled = flightAssistant.isDebugEnabled
 
-local LoGetModelTime = Export.LoGetModelTime
-local LoGetADIPitchBankYaw = Export.LoGetADIPitchBankYaw
-local LoGetIndicatedAirSpeed = Export.LoGetIndicatedAirSpeed
-local LoSetCommand = Export.LoSetCommand
-local LoGetAngleOfSideSlip = Export.LoGetAngleOfSideSlip
-local LoGetVerticalVelocity = Export.LoGetVerticalVelocity
+local LoGetModelTime = LoGetModelTime or Export.LoGetModelTime
+local LoGetADIPitchBankYaw = LoGetADIPitchBankYaw or Export.LoGetADIPitchBankYaw
+local LoGetIndicatedAirSpeed = LoGetIndicatedAirSpeed or Export.LoGetIndicatedAirSpeed
+local LoSetCommand = LoSetCommand or Export.LoSetCommand
+local LoGetAngleOfSideSlip = LoGetAngleOfSideSlip or Export.LoGetAngleOfSideSlip
+local LoGetVerticalVelocity = LoGetVerticalVelocity or Export.LoGetVerticalVelocity
 
 local MODE_LEVEL = 1
 local MODE_BANK = 2

@@ -3,8 +3,10 @@ local flightAssistantScriptDir = baseDir .. 'core\\'
 local flightAssistantScriptFile = flightAssistantScriptDir .. 'FlightAssistant.lua'
 local extensionsDir = baseDir .. 'extensions\\'
 local playerUnitScriptsDir = baseDir .. 'test\\pUnit\\'
+local debugExpectations = false
+local debugUserCallbacks = false
 
-function initFlightAssistantTestConfig(config, reload, unitConfig)
+function initFlightAssistantTestConfig(config, reload, unitConfig, inLuaExportEnv)
     config.flightAssistantScriptFile = flightAssistantScriptFile
     config.extensionsDir = extensionsDir
     config.playerUnitScriptsDir = playerUnitScriptsDir
@@ -12,15 +14,18 @@ function initFlightAssistantTestConfig(config, reload, unitConfig)
         Test = {
             reloadOnMissionLoad = reload or false,
             unitConfig = unitConfig,
+            dcsEnvs = 'DCS Control API, LuaExport'
         },
     }
+    if inLuaExportEnv then
+        config.enableDCSEnvs = 'LuaExport'
+    end
 end
 
 local expectations = {}
 local skippableEvents = {}
 local expectationIndex = 1;
 local errors = 0
-local debugUserCallbacks = false
 local function createExpectation(eventName)
     local expectation = {
         eventName = eventName,
@@ -45,11 +50,18 @@ function expect(eventName)
     table.insert(expectations, expectation)
     return expectation
 end
+function expectE(eventName, inLuaExportEnv)
+    if inLuaExportEnv then
+        return expect(eventName)
+    else
+        return expect("Export." .. eventName)
+    end
+end
 function expectError(msg, f, ...)
     local ok, r = pcall(f, unpack(arg))
     if ok then
         errors = errors + 1
-        print('! error expected - ' .. msg)
+        print('!!! error expected - ' .. msg)
     else
         print('expected error received: ' .. r)
     end
@@ -77,16 +89,19 @@ function checkEvent(eventName, partialMatch)
     if expectation then
         if partialMatch and string.find(eventName, expectation.eventName, 1, true) or eventName == expectation.eventName then
             expectationIndex = expectationIndex + 1
+            if debugExpectations then
+                print('expected: ' .. eventName .. ': OK')
+            end
             if expectation.doReturn then
                 return expectation.doReturn()
             end
         elseif not isSkippableEvent(eventName) then
             errors = errors + 1
-            error('expected "' .. expectation.eventName .. '", got: ' .. eventName, 2)
+            error('!!! expected "' .. expectation.eventName .. '", got: ' .. eventName, 2)
         end
     elseif not isSkippableEvent(eventName) then
         errors = errors + 1
-        error(eventName .. ' not expected', 2)
+        error('!!! ' .. eventName .. ' not expected', 2)
     end
 end
 
@@ -95,7 +110,7 @@ function checkEvents(msg)
     if expectation then
         while expectation do
             errors = errors + 1
-            print('! expecting ' .. expectation.eventName)
+            print('!!! expecting ' .. expectation.eventName)
             expectationIndex = expectationIndex + 1
             expectation = expectations[expectationIndex]
         end
@@ -118,33 +133,58 @@ log.write = function(logSubsystemName, level, msg)
 end
 
 local userCallbacks
-DCS = { setUserCallbacks = 1, reloadUserScripts = 2 }
-DCS.setUserCallbacks = function(callbacks)
+local DCSTable = { setUserCallbacks = 1, reloadUserScripts = 2 }
+DCSTable.setUserCallbacks = function(callbacks)
     checkEvent("DCS.setUserCallbacks")
     userCallbacks = callbacks
 end
-DCS.reloadUserScripts = function()
+DCSTable.reloadUserScripts = function()
     checkEvent("DCS.reloadUserScripts")
 end
 
-Export = { LoGetSelfData = 1, GetDevice = 2 }
-Export.LoGetSelfData = function()
+local ExportTable = { LoGetSelfData = 1, GetDevice = 2 }
+local ExportEnv =  { LoGetSelfData = 1, GetDevice = 2 }
+ExportTable.LoGetSelfData = function()
     return checkEvent("Export.LoGetSelfData")
 end
-Export.GetDevice = function(deviceId)
+ExportEnv.LoGetSelfData = function()
+    return checkEvent("LoGetSelfData")
+end
+ExportTable.GetDevice = function(deviceId)
     return checkEvent('Export.GetDevice(' .. deviceId .. ')')
 end
-Export.LoGetModelTime = function()
+ExportEnv.GetDevice = function(deviceId)
+    return checkEvent('GetDevice(' .. deviceId .. ')')
+end
+ExportTable.LoGetModelTime = function()
     return os.clock()
 end
-Export.LoIsOwnshipExportAllowed = function()
+ExportEnv.LoGetModelTime = function()
+    return os.clock()
+end
+ExportTable.LoIsOwnshipExportAllowed = function()
     return true
 end
-net = { dostring_in = function(env, lua)
+ExportEnv.LoIsOwnshipExportAllowed = function()
+    return true
+end
+ExportEnv.a_cockpit_perform_clickable_action = function(d, c, v)
+    return checkEvent('a_cockpit_perform_clickable_action(' .. d .. ', ' .. c .. ', ' .. v .. ')')
+end
+local netTable = { dostring_in = function(env, lua)
     return checkEvent("dostring_in(" .. env .. ', ' .. lua .. ')')
 end }
+local exportEnvCallbackMap = {
+    onSimulationStart = 'LuaExportStart',
+    onSimulationStop = 'LuaExportStop',
+    onSimulationFrame = 'LuaExportAfterNextFrame',
+}
 function fireUserCallback(name)
     local cb = userCallbacks and userCallbacks[name]
+    if not cb and exportEnvCallbackMap[name] and _G[exportEnvCallbackMap[name]]then
+        name = exportEnvCallbackMap[name]
+        cb = _G[name]
+    end
     if cb then
         if debugUserCallbacks then
             print("    Calling " .. name)
@@ -175,31 +215,63 @@ if not lua then
     error('Loading ' .. flightAssistantScriptFile .. ' FAILED: ' .. err)
 end
 
-function startFlightAssistant(config)
+function startFlightAssistant(config, inLuaExportEnv)
+    if inLuaExportEnv then
+        DCS = nil;
+        Export = nil;
+        net = nil;
+        for n, v in pairs(ExportEnv) do
+            _G[n] = v
+        end
+
+    else
+        DCS = DCSTable;
+        Export = ExportTable;
+        net = netTable;
+        for n, _ in pairs(ExportEnv) do
+            _G[n] = nil
+        end
+    end
+
     local ok, r = pcall(lua, config)
     if not ok then
         error('Starting FlightAssistant FAILED: ' .. r)
     end
 end
 
-function setupFlightAssistant(config, selfData, withLogEvents)
+function setupFlightAssistant(config, selfData, withLogEvents, inLuaExportEnv)
     local withDebugEvents = config.debug and withLogEvents
     log.setEventsEnabled(withLogEvents)
-    if withLogEvents then
-        expect('Installing DCS Control API User callbacks')
+    if inLuaExportEnv then
+        if withLogEvents then
+            expect('WARNING  FLIGHTASSISTANT(E) (main): Cannot install DCS Control API callbacks: function DCS.setUserCallbacks not found')
+            expect('INFO     FLIGHTASSISTANT(E) (main): Installing LuaExport callbacks')
+        end
+    else
+        if withLogEvents then
+            expect('Installing DCS Control API User callbacks')
+        end
+        expect('DCS.setUserCallbacks')
     end
-    expect('DCS.setUserCallbacks')
     if withDebugEvents then
         expect('flightAssistantScriptFile')
         expect('flightAssistantScriptDir')
         expect('extensionsDir')
+        expect('enableDCSEnvs = ')
         expect('Loading file ..\\core\\pUnit.lua')
         addSkippableEvent(': Loading file')
+    end
+    if inLuaExportEnv and withLogEvents then
+        expect('WARNING  FLIGHTASSISTANT(E) (main): net.dostring_in function is not available')
     end
     if withLogEvents then
         expect('[Test] FlightAssistant created')
     end
-    expect('Export.LoGetSelfData').andReturn(selfData)
+    if inLuaExportEnv then
+        expect('LoGetSelfData').andReturn(selfData)
+    else
+        expect('Export.LoGetSelfData').andReturn(selfData)
+    end
     if selfData then
         if withDebugEvents then
             expect('Searching')
@@ -210,17 +282,24 @@ function setupFlightAssistant(config, selfData, withLogEvents)
             expect('activated')
         end
     end
-    startFlightAssistant(config)
+    startFlightAssistant(config, inLuaExportEnv)
     fireUserCallback('onSimulationStart')
     return withDebugEvents
 end
 
+function reset()
+    FlightAssistant = nil
+    userCallbacks = nil
+    for _,v in pairs(exportEnvCallbackMap) do
+        _G[v] = nil
+    end
+end
 local function runTestCase(name)
     local testCase = require(name)
     local ok, r = pcall(testCase.test)
     if not ok then
         errors = errors + 1
-        print('! ' .. r)
+        print('!!! ' .. tostring(r))
     end
 end
 

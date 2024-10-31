@@ -5,135 +5,101 @@ local config = {
 }
 
 local selfData = { Name = 'TestUnit' }
+local function performClickableActionTest(config, testIndex, inLuaExportEnv)
+    initFlightAssistantTestConfig(config, nil, nil, inLuaExportEnv)
 
-return { test = function()
-    initFlightAssistantTestConfig(config)
-
-    local useExport = not config.DCSCalls.use_a_cockpit_perform_clickable_action
+    local useGetDevice = not config.DCSCalls.use_a_cockpit_perform_clickable_action
 
     local withLogEvents = true
-    setupFlightAssistant(config, selfData, withLogEvents)
-    checkEvents('A')
+    setupFlightAssistant(config, selfData, withLogEvents, inLuaExportEnv)
+    checkEvents('A' .. testIndex)
 
-    expect('Export.LoGetSelfData').andReturn(selfData)
+    expectE('LoGetSelfData', inLuaExportEnv).andReturn(selfData)
     expect('onSimulationFrame').andReturn('performClickableAction(25, 3001)')
-    if useExport then
-        expect('Export.GetDevice(25)').andReturn({
+    if useGetDevice then
+        expectE('GetDevice(25)', inLuaExportEnv).andReturn({
             performClickableAction = function(_, c, v)  checkEvent('performClickableAction(' .. tostring(c) .. ', ' .. tostring(v) .. ')'); end, })
         expect('performClickableAction(3001, 1)')
     else
-        expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn('evil', nil)
-        expect('dostring_in(mission, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, nil) --FAILED
-        if withLogEvents then
-            expect('evil')
-            expect('FAILED: ?')
+        if inLuaExportEnv then
+            expect('a_cockpit_perform_clickable_action(25, 3001, 1)')
+        else
+            expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn('evil', nil)
+            expect('dostring_in(mission, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, nil) --FAILED
+            if withLogEvents then
+                expect('evil')
+                expect('FAILED: ?')
+            end
         end
     end
     fireUserCallback('onSimulationFrame')
-    checkEvents('B')
+    checkEvents('B' .. testIndex)
 
-    expect('Export.LoGetSelfData').andReturn(selfData)
+    expectE('LoGetSelfData', inLuaExportEnv).andReturn(selfData)
     expect('onSimulationFrame').andReturn('performClickableAction(25, 3001)')
-    if useExport then
-        expect('Export.GetDevice(25)').andReturn({
+    if useGetDevice then
+        expectE('GetDevice(25)', inLuaExportEnv).andReturn({
             performClickableAction = function(_, c, v)  checkEvent('performClickableAction(' .. tostring(c) .. ', ' .. tostring(v) .. ')'); end, })
         expect('performClickableAction(3001, 1)')
     else
-        expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn('evil', nil)
-        expect('dostring_in(mission, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, true) --SUCCESS
+        if inLuaExportEnv then
+            expect('a_cockpit_perform_clickable_action(25, 3001, 1)')
+        else
+            expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn('evil', nil)
+            expect('dostring_in(mission, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, true) --SUCCESS
+        end
     end
     fireUserCallback('onSimulationFrame')
-    checkEvents('C')
+    checkEvents('C' .. testIndex)
 
-    expect('Export.LoGetSelfData').andReturn(selfData)
+    expectE('LoGetSelfData', inLuaExportEnv).andReturn(selfData)
     expect('onSimulationFrame').andReturn('performClickableAction(25, "3001")')
     if config.debug then
         expect('\'command\' must be a number')
     else
-        if useExport then
-            expect('Export.GetDevice(25)').andReturn({
+        if useGetDevice then
+            expectE('GetDevice(25)', inLuaExportEnv).andReturn({
                 performClickableAction = function(_, c, v)  checkEvent('performClickableAction(' .. tostring(c) .. ', ' .. tostring(v) .. ')'); end, })
             expect('performClickableAction(3001, 1)')
         else
-            expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, true)
+            if inLuaExportEnv then
+                expect('a_cockpit_perform_clickable_action(25, 3001, 1)')
+            else
+                expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, true)
+            end
         end
     end
     fireUserCallback('onSimulationFrame')
-    checkEvents('D')
+    checkEvents('D' .. testIndex)
 
-    config.DCSCalls.use_a_cockpit_perform_clickable_action = not config.DCSCalls.use_a_cockpit_perform_clickable_action
-    useExport = not config.DCSCalls.use_a_cockpit_perform_clickable_action
-
-    FlightAssistant = nil
-    setupFlightAssistant(config, selfData, withLogEvents)
-    checkEvents('A2')
-
-    expect('Export.LoGetSelfData').andReturn(selfData)
-    expect('onSimulationFrame').andReturn('performClickableAction(25, "3001")')
-    if config.debug then
-        expect('\'command\' must be a number')
-    else
-        if useExport then
-            expect('Export.GetDevice(25)').andReturn({
-                performClickableAction = function(_, c, v)
-                    checkEvent('performClickableAction(' .. tostring(c) .. ', ' .. tostring(v) .. ')');
-                end, })
-            expect('performClickableAction(3001, 1)')
-        else
-            expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, true)
-        end
-    end
-    fireUserCallback('onSimulationFrame')
-    checkEvents('B2')
-
-    config.debug = not config.debug
-
-    FlightAssistant = nil
-    setupFlightAssistant(config, selfData, withLogEvents)
-    checkEvents('A3')
-
-    expect('Export.LoGetSelfData').andReturn(selfData)
-    expect('onSimulationFrame').andReturn('performClickableAction(25, "3001")')
-    if config.debug then
-        expect('\'command\' must be a number')
-    else
-        if useExport then
-            expect('Export.GetDevice(25)').andReturn({
-                performClickableAction = function(_, c, v)  checkEvent('performClickableAction(' .. tostring(c) .. ', ' .. tostring(v) .. ')'); end, })
-            expect('performClickableAction(3001, 1)')
-        else
-            expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, true)
-        end
-    end
-    fireUserCallback('onSimulationFrame')
-    checkEvents('B3')
-
-    config.DCSCalls.use_a_cockpit_perform_clickable_action = not config.DCSCalls.use_a_cockpit_perform_clickable_action
-    useExport = not config.DCSCalls.use_a_cockpit_perform_clickable_action
-
-    FlightAssistant = nil
-    setupFlightAssistant(config, selfData, withLogEvents)
-    checkEvents('A4')
-
-    expect('Export.LoGetSelfData').andReturn(selfData)
-    expect('onSimulationFrame').andReturn('performClickableAction(25, "3001")')
-    if config.debug then
-        expect('\'command\' must be a number')
-    else
-        if useExport then
-            expect('Export.GetDevice(25)').andReturn({
-                performClickableAction = function(_, c, v)
-                    checkEvent('performClickableAction(' .. tostring(c) .. ', ' .. tostring(v) .. ')');
-                end, })
-            expect('performClickableAction(3001, 1)')
-        else
-            expect('dostring_in(server, a_cockpit_perform_clickable_action(25, 3001, 1))').andReturn(nil, true)
-        end
-    end
-    fireUserCallback('onSimulationFrame')
-    checkEvents('B4')
-
+    reset()
 
     assert(withLogEvents, 'withLogEvents must be true for this test')
 
+end
+
+return { test = function()
+    config.debug = false
+    config.DCSCalls.use_a_cockpit_perform_clickable_action = false
+    performClickableActionTest(config, 1, false)
+    config.debug = true
+    performClickableActionTest(config, 2, false)
+
+    config.debug = false
+    config.DCSCalls.use_a_cockpit_perform_clickable_action = true
+    performClickableActionTest(config, 3, false)
+    config.debug = true
+    performClickableActionTest(config, 4, false)
+
+    config.debug = false
+    config.DCSCalls.use_a_cockpit_perform_clickable_action = false
+    performClickableActionTest(config, 5, true)
+    config.debug = true
+    performClickableActionTest(config, 6, true)
+
+    config.debug = false
+    config.DCSCalls.use_a_cockpit_perform_clickable_action = true
+    performClickableActionTest(config, 7, true)
+    config.debug = true
+    performClickableActionTest(config, 8, true)
 end }

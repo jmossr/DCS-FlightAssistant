@@ -71,6 +71,8 @@ do
 
         extensionsDir = extensionsDir,
 
+        enableDCSEnvs = @FA_ENABLE_ENVS@,
+
         --[[------
         -- Lower and upper boundary for all possible values that may be returned
         -- by event sources. This includes for example device argument values or
@@ -81,6 +83,8 @@ do
         --absoluteMinimumEventValue = -1000000,
         --absoluteMaximumEventValue = 1000000,
 
+        -- System - core
+        --===================--
         flightAssistants = collectAssistants(),
     }
 
