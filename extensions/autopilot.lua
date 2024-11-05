@@ -1,7 +1,7 @@
-local flightAssistant = getfenv(1)
-local isSimulationPaused = flightAssistant.isSimulationPaused
-local fmtInfo = flightAssistant.fmtInfo
-local isDebugEnabled = flightAssistant.isDebugEnabled
+local flightAssistantCore = ...
+local isSimulationPaused = flightAssistantCore.simulation.isPaused
+local fmtInfo = flightAssistantCore.logger.fmtInfo
+local isDebugEnabled = flightAssistantCore.config.isDebugEnabled
 
 local LoGetModelTime = LoGetModelTime or Export.LoGetModelTime
 local LoGetADIPitchBankYaw = LoGetADIPitchBankYaw or Export.LoGetADIPitchBankYaw

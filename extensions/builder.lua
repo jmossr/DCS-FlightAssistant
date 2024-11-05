@@ -113,24 +113,23 @@
            end
 
 --------]=]
-
+local flightAssistantCore = ...
 local tostring = tostring
 local tinsert = table.insert
 local tremove = table.remove
 local type = type
-local flightAssistant = getfenv(1)
-local fmtInfo = flightAssistant.fmtInfo
-local isDebugEnabled = flightAssistant.isDebugEnabled
-local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
-local clearTable = flightAssistant.clearTable
-local addSimCallbackAction = flightAssistant.addSimCallbackAction
-local getOrCreateCallbackAction = flightAssistant.getOrCreateCallbackAction
-local indexOf = flightAssistant.indexOf
-local addOnValueAction = flightAssistant.addOnValueAction
-local addOnValueChangedAction = flightAssistant.addOnValueChangedAction
-local addOnValueBetweenAction = flightAssistant.addOnValueBetweenAction
-local checkArgType = flightAssistant.checkArgType
-local checkStringOrNumberArg = flightAssistant.checkStringOrNumberArg
+local fmtInfo = flightAssistantCore.logger.fmtInfo
+local isDebugEnabled = flightAssistantCore.config.isDebugEnabled
+local isDebugUnitEnabled = flightAssistantCore.config.isDebugUnitEnabled
+local clearTable = flightAssistantCore.tools.clearTable
+local addSimCallbackAction = flightAssistantCore.pUnit.addSimCallbackAction
+local getOrCreateCallbackAction = flightAssistantCore.pUnit.getOrCreateCallbackAction
+local indexOf = flightAssistantCore.tools.indexOf
+local addOnValueAction = flightAssistantCore.actions.addOnValueAction
+local addOnValueChangedAction = flightAssistantCore.actions.addOnValueChangedAction
+local addOnValueBetweenAction = flightAssistantCore.actions.addOnValueBetweenAction
+local checkArgType = flightAssistantCore.debugtools.checkArgType
+local checkStringOrNumberArg = flightAssistantCore.debugtools.checkStringOrNumberArg
 
 --[[------
 -- Builder extensions are functions with args (builder, proxy)

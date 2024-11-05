@@ -94,29 +94,29 @@
                         executes an action every time a device argument value enters the given range
 
 --------]=]
+local flightAssistantCore = ...
 local pairs = pairs
 local error = error
-local flightAssistant = getfenv(1)
-local fmtWarning = flightAssistant.fmtWarning
-local fmtInfo = fmtWarning and flightAssistant.fmtInfo
-local isDebugEnabled = flightAssistant.isDebugEnabled
-local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
+local fmtWarning = flightAssistantCore.logger.fmtWarning
+local fmtInfo = fmtWarning and flightAssistantCore.logger.fmtInfo
+local isDebugEnabled = flightAssistantCore.config.isDebugEnabled
+local isDebugUnitEnabled = flightAssistantCore.config.isDebugUnitEnabled
 local dostring_in = net and net.dostring_in or nil
-local getOptionalExtension = flightAssistant.getOptionalExtension
+local getOptionalExtension = flightAssistantCore.extensions.getOptionalExtension
 local XGetDevice = GetDevice or Export and Export.GetDevice or nil
 local list_cockpit_params = list_cockpit_params or Export and Export.list_cockpit_params or nil
 local list_indication = list_indication or Export and Export.list_indication or nil
 local a_start_listen_command = a_start_listen_command or Export and Export.a_start_listen_command or nil
 local a_cockpit_perform_clickable_action = a_cockpit_perform_clickable_action or Export and Export.a_cockpit_perform_clickable_action or nil
-local fire = flightAssistant.fire
-local checkArgType = flightAssistant.checkArgType
-local checkStringOrNumberArg = flightAssistant.checkStringOrNumberArg
-local checkPositiveNumberArg = flightAssistant.checkPositiveNumberArg
-local copyAll = flightAssistant.copyAll
-local  absoluteMaximumEventValue = flightAssistant.flightAssistantConfig.absoluteMaximumEventValue or 1000000
-local use_a_cockpit_perform_clickable_action = flightAssistant.flightAssistantConfig
-        and flightAssistant.flightAssistantConfig.DCSCalls
-        and flightAssistant.flightAssistantConfig.DCSCalls.use_a_cockpit_perform_clickable_action
+local fire = flightAssistantCore.actions.fire
+local checkArgType = flightAssistantCore.debugtools.checkArgType
+local checkStringOrNumberArg = flightAssistantCore.debugtools.checkStringOrNumberArg
+local checkPositiveNumberArg = flightAssistantCore.debugtools.checkPositiveNumberArg
+local copyAll = flightAssistantCore.tools.copyAll
+local absoluteMaximumEventValue = flightAssistantCore.config.absoluteMaximumEventValue or 1000000
+local use_a_cockpit_perform_clickable_action = flightAssistantCore.config.DCSCalls
+        and flightAssistantCore.config.DCSCalls.use_a_cockpit_perform_clickable_action
+        and true
         or false
 
 local executeLuaIn
@@ -264,7 +264,7 @@ local performClickableAction
 if use_a_cockpit_perform_clickable_action then
     if a_cockpit_perform_clickable_action then
         performClickableAction = function(deviceId, commandId, value)
-            return a_cockpit_perform_clickable_action(deviceId, commandId,  (value or 1))
+            return a_cockpit_perform_clickable_action(deviceId, commandId, (value or 1))
         end
     else
         performClickableAction = function(deviceId, commandId, value)

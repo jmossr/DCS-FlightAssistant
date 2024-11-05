@@ -2,23 +2,22 @@
     --FlightAssistant
     --Flags
 --------]]
+local flightAssistantCore = ...
 local tinsert = table.insert
 local tostring = tostring
 local tonumber = tonumber
 local pairs = pairs
-local flightAssistant = getfenv(1)
-local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
-local getOptionalExtension = flightAssistant.getOptionalExtension
-local requireExtension = flightAssistant.requireExtension
-local getOrCreateCallbackAction = flightAssistant.getOrCreateCallbackAction
-local fire = flightAssistant.fire
-local checkArgType = flightAssistant.checkArgType
-local checkStringOrNumberArg = flightAssistant.checkStringOrNumberArg
-local addOnValueChangedAction = flightAssistant.addOnValueChangedAction
-local addOnValueBetweenAction = flightAssistant.addOnValueBetweenAction
-local addOnValueAction = flightAssistant.addOnValueAction
+local isDebugUnitEnabled = flightAssistantCore.config.isDebugUnitEnabled
+local getOptionalExtension = flightAssistantCore.extensions.getOptionalExtension
+local getOrCreateCallbackAction = flightAssistantCore.pUnit.getOrCreateCallbackAction
+local fire = flightAssistantCore.actions.fire
+local checkArgType = flightAssistantCore.debugtools.checkArgType
+local checkStringOrNumberArg = flightAssistantCore.debugtools.checkStringOrNumberArg
+local addOnValueChangedAction = flightAssistantCore.actions.addOnValueChangedAction
+local addOnValueBetweenAction = flightAssistantCore.actions.addOnValueBetweenAction
+local addOnValueAction = flightAssistantCore.actions.addOnValueAction
 
-local dcsLib = requireExtension('DCS-calls')
+local dcsLib = flightAssistantCore.extensions.requireExtension('DCS-calls')
 local getUserFlag = dcsLib.getUserFlag
 local setUserFlag = dcsLib.setUserFlag
 local startListenCommand = dcsLib.startListenCommand

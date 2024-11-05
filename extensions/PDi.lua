@@ -1,5 +1,5 @@
-local flightAssistant = getfenv(1)
-local fmtInfo = flightAssistant.fmtInfo
+local flightAssistantCore = ...
+local fmtInfo = flightAssistantCore.logger.fmtInfo
 
 --local function confine(value, min, max)
 --    if value < min then

@@ -14,8 +14,6 @@ local tinsert = table.insert
 local loadfile = loadfile
 local pcall = pcall
 local error = error
-local tonumber = tonumber
-local setmetatable = setmetatable
 local flightAssistantConfig = ...
 local config = (flightAssistantConfig and type(flightAssistantConfig) == 'table') and flightAssistantConfig or nil
 local isReloadUserScriptsOnMissionLoad = not config or config.reloadUserScriptsOnMissionLoad
@@ -24,11 +22,10 @@ local enableDCSEnvs = config and config.enableDCSEnvs or ENV_DCS_CONTROL_API
 local lwrite = log.write
 local lINFO = log.INFO
 local lWARNING = log.WARNING
-local lERROR = log.ERROR
 local LoGetSelfData = LoGetSelfData or Export and Export.LoGetSelfData or nil
-local LoIsOwnshipExportAllowed = LoIsOwnshipExportAllowed or Export and Export.LoIsOwnshipExportAllowed or nil
 local setfenv = setfenv
 local unpack = unpack
+
 local function clearTable(table)
     if type(table) == 'table' then
         for k, _ in pairs(table) do
@@ -103,7 +100,7 @@ do
         isReloadUserScriptsOnMissionLoad = false
         logSubsystemName = logSubsystemName .. '(E)'
         lwrite(logSubsystemName, lWARNING, 'Cannot install DCS Control API callbacks: function DCS.setUserCallbacks not found')
-        if _G.LoGetModelTime then
+        if LoGetModelTime then
             lwrite(logSubsystemName, lINFO, 'Installing LuaExport callbacks')
             if LuaExportStart then
                 local nextLuaExportStart = LuaExportStart
@@ -140,12 +137,6 @@ do
     end
 end
 --[[------
-    Check minimum requirements
-------]]--
-if not LoIsOwnshipExportAllowed() then
-    lwrite(logSubsystemName, lWARNING, 'Access to ownship data is denied. (LoIsOwnshipExportAllowed() == false)')
-end
---[[------
     --Config
 --------]]
 if not flightAssistantConfig then
@@ -160,173 +151,20 @@ local flightAssistantScriptDir = smatch(flightAssistantConfig.flightAssistantScr
 local extensionsDir = flightAssistantConfig.extensionsDir or (flightAssistantScriptDir .. 'extensions')
 local isDebugEnabled = flightAssistantConfig.debug and true or false
 local isDebugUnitEnabled = flightAssistantConfig.debugUnit and true or isDebugEnabled
-local pUnitLibName = flightAssistantConfig.pUnitLib or 'pUnit'
-
---[[------
-    --Logging
---------]]
-local function fmtInfo(fmt, ...)
-    lwrite(logSubsystemName, lINFO, sformat(fmt, unpack(arg)))
-end
-local function fmtWarning(fmt, ...)
-    lwrite(logSubsystemName, lWARNING, sformat(fmt, unpack(arg)))
-end
-local function fmtError(fmt, ...)
-    lwrite(logSubsystemName, lERROR, sformat(fmt, unpack(arg)))
-end
 
 if isDebugEnabled then
-    fmtInfo('flightAssistantScriptFile = %s', flightAssistantConfig.flightAssistantScriptFile)
-    fmtInfo('flightAssistantScriptDir = %s', flightAssistantScriptDir)
-    fmtInfo('extensionsDir = %s', extensionsDir)
-    fmtInfo('enableDCSEnvs = %s', enableDCSEnvs)
+    lwrite(logSubsystemName, lINFO, sformat('flightAssistantScriptFile = %s', flightAssistantConfig.flightAssistantScriptFile))
+    lwrite(logSubsystemName, lINFO, sformat('flightAssistantScriptDir = %s', flightAssistantScriptDir))
+    lwrite(logSubsystemName, lINFO, sformat('extensionsDir = %s', extensionsDir))
+    lwrite(logSubsystemName, lINFO, sformat('enableDCSEnvs = %s', enableDCSEnvs))
 end
 
 --[[------
-    --Utilities
+    -- loadLua
 ------]]--
-local function printTable(name, t)
-    if t then
-        if (type(t) ~= 'table') then
-            fmtInfo('%s is not a table but a %s', name, type(t))
-        else
-            fmtInfo('Table %s', name)
-            for n, v in pairs(t) do
-                fmtInfo("  - %s = %s (%s)", n, tostring(v), type(v))
-            end
-        end
-    else
-        fmtInfo("Table not found: %s = nil", name)
-    end
-end
-local function copyAll(src, dest)
-    for k, v in pairs(src) do
-        dest[k] = v
-    end
-end
-local function getTrimmedTableId(t)
-    return tostring(t):match(":%s*0*([%dABCDEFabcdef]+)")
-end
-local function NOOP()
-end
-local function indexOf(list, element)
-    local n = #list
-    for i = 1, n do
-        if list[i] == element then
-            return i
-        end
-    end
-    return 0
-end
-local function listAddOnce(list, element)
-    local n = #list
-    for i = 1, n do
-        if list[i] == element then
-            return i
-        end
-    end
-    list[n + 1] = element
-end
-local function checkArgType(fsignature, argName, arg, expectedType, requireNonNil, errorLevel)
-    if requireNonNil or arg then
-        local argType = type(arg)
-        if argType ~= expectedType then
-            error(sformat('%s \'%s\' must be a %s, not a %s', fsignature, argName, expectedType, argType), errorLevel + 1)
-        end
-    end
-end
-local function checkStringOrNumberArg(fsignature, argName, arg, requireNonNil, errorLevel)
-    if requireNonNil or arg then
-        local argType = type(arg)
-        if argType ~= 'string' and argType ~= 'number' then
-            error(sformat('%s \'%s\' must be a string or a number, not a %s', fsignature, argName, argType), errorLevel + 1)
-        end
-    end
-end
-local function checkPositiveNumberArg(fsignature, argName, arg, requireNonNil, errorLevel)
-    checkArgType(fsignature, argName, arg, 'number', requireNonNil, errorLevel + 1)
-    if arg and arg < 0 then
-        error(sformat('%s \'%s\' must be a positive number, not %s', fsignature, argName, arg), errorLevel + 1)
-    end
-end
-
---[[------
-    --Actions
-------]]--
-local function fireConditional(self, ...)
-    if self.state then
-        self.state = self.condition(unpack(arg))
-    elseif self.condition(unpack(arg)) then
-        self.state = true
-        self.action:fire(unpack(arg))
-    end
-end
-local function addAction(actionList, action, condition)
-    if condition then
-        tinsert(actionList, { action = action, condition = condition, fire = fireConditional })
-    else
-        tinsert(actionList, action)
-    end
-end
-local absoluteMinimumEventValue = flightAssistantConfig.absoluteMinimumEventValue or -1000000
-local absoluteMaximumEventValue = flightAssistantConfig.absoluteMaximumEventValue or 1000000
-local function addOnValueChangedAction(eventSourceAccessor, action, debug)
-    local eventSource = eventSourceAccessor(absoluteMinimumEventValue, absoluteMaximumEventValue)
-    if debug then
-        eventSource.debug = true
-    end
-    addAction(eventSource.observers, action)
-end
-local function addOnValueAction(eventSourceAccessor, action, value, debug)
-    local expected = tostring(value)
-    local eventSource = eventSourceAccessor(value, value)
-    if debug then
-        eventSource.debug = true
-    end
-    addAction(eventSource.observers, action, function(newValue)
-        return expected == tostring(newValue);
-    end)
-end
-local function addOnValueBetweenAction(eventSourceAccessor, action, minValue, maxValue, debug)
-    local min = tonumber(minValue) or absoluteMinimumEventValue
-    local max = tonumber(maxValue) or absoluteMaximumEventValue
-    local eventSource = eventSourceAccessor(minValue, maxValue)
-    if debug then
-        eventSource.debug = true
-    end
-    addAction(eventSource.observers, action, function(newValue)
-        local numVal = tonumber(newValue)
-        return numVal and min <= numVal and numVal <= max;
-    end)
-end
-local function fire(actionList, ...)
-    local n = #actionList
-    local action
-    for i = 1, n do
-        action = actionList[i]
-        action:fire(unpack(arg))
-    end
-end
-local function isSimulationPaused()
-    return simulationPaused
-end
---[[------
-    --Lib support
---------]]
-local libs = {}
-local libEnv = { fmtInfo = fmtInfo, fmtWarning = fmtWarning, fmtError = fmtError,
-                 NOOP = NOOP, indexOf = indexOf, listAddOnce = listAddOnce, printTable = printTable, clearTable = clearTable,
-                 copyAll = copyAll, getTrimmedTableId = getTrimmedTableId,
-                 checkArgType = checkArgType, checkStringOrNumberArg = checkStringOrNumberArg, checkPositiveNumberArg = checkPositiveNumberArg,
-                 addAction = addAction, addOnValueChangedAction = addOnValueChangedAction,
-                 addOnValueAction = addOnValueAction, addOnValueBetweenAction = addOnValueBetweenAction, fire = fire,
-                 isDebugEnabled = isDebugEnabled, isDebugUnitEnabled = isDebugUnitEnabled,
-                 flightAssistantConfig = flightAssistantConfig, isSimulationPaused = isSimulationPaused }
-setmetatable(libEnv, { __index = _G })
-
 local function loadLua(path, env, ...)
     if isDebugEnabled then
-        fmtInfo('Loading file %s', path)
+        lwrite(logSubsystemName, lINFO, sformat('Loading file %s', path))
     end
     local f, err = loadfile(path)
     if not f then
@@ -341,85 +179,60 @@ local function loadLua(path, env, ...)
     end
     return r or true
 end
-local function loadLib(path)
-    return loadLua(path, libEnv)
-end
---[[------
-    --Extension support
---------]]
-local INIT_ASSISTANT = 'initAssistant'
-local INIT_PUNIT = 'initPUnit'
-local BEFORE_PUNIT_ACTIVATION = 'beforePUnitActivation'
-local AFTER_PUNIT_ACTIVATION = 'afterPUnitActivation'
-local BEFORE_PUNIT_DEACTIVATION = 'beforePUnitDeactivation'
-local AFTER_PUNIT_DEACTIVATION = 'afterPUnitDeactivation'
-local BEFORE_SIMULATION_FRAME = 'beforeSimulationFrame'
-local AFTER_SIMULATION_FRAME = 'afterSimulationFrame'
-local extensionEvents = { INIT_ASSISTANT,
-                          INIT_PUNIT, BEFORE_PUNIT_ACTIVATION, AFTER_PUNIT_ACTIVATION,
-                          BEFORE_PUNIT_DEACTIVATION, AFTER_PUNIT_DEACTIVATION,
-                          BEFORE_SIMULATION_FRAME, AFTER_SIMULATION_FRAME }
-local extensions = {}
-local function addExtensionFunction(libName, lib, functionName)
-    local f = lib[functionName]
-    if f and type(f) ~= 'function' then
-        fmtWarning("Ignoring %s.%s: it is a %s instead of a function.", libName, functionName, type(f))
-    elseif f then
-        if not extensions[functionName] then
-            extensions[functionName] = { f }
-        else
-            tinsert(extensions[functionName], f)
-        end
-    end
-end
-local function callExtensionFunctions(functionName, p1, p2)
-    local functions = extensions[functionName]
-    if functions then
-        for _, f in pairs(functions) do
-            f(p1, p2)
-        end
-    end
-end
---[[------
-    --Imports
---------]]
-local function requireLib(name, path, isExtension)
-    local lib = libs[path]
-    if not lib then
-        lib = loadLib(path)
-        libs[path] = lib
-        if isExtension then
-            for _, event in pairs(extensionEvents) do
-                addExtensionFunction(name, lib, event)
-            end
-        end
-    end
-    return lib
-end
-local function requireExtension(name)
-    return requireLib(name, extensionsDir .. name .. '.lua', true)
-end
-local function getOptionalExtension(name)
-    return libs[extensionsDir .. name .. '.lua']
-end
-libEnv.requireExtension = requireExtension
-libEnv.getOptionalExtension = getOptionalExtension
 
-local globalns = _G
+--[[------
+    --Core
+--------]]
+local flightAssistantCore = {}
+flightAssistantConfig.isDebugEnabled = isDebugEnabled
+flightAssistantConfig.isDebugUnitEnabled = isDebugUnitEnabled
+flightAssistantCore.config = flightAssistantConfig
+flightAssistantCore.extensionsDir = extensionsDir
+flightAssistantCore.loadLua = loadLua
+flightAssistantCore.simulation = {
+    isPaused = function()
+        return simulationPaused
+    end
+}
+flightAssistantCore.logger = loadLua(flightAssistantScriptDir .. 'logger.lua').createLogger(logSubsystemName)
+flightAssistantCore.tools = loadLua(flightAssistantScriptDir .. 'tools.lua')
+flightAssistantCore.tools.clearTable = clearTable
+flightAssistantCore.debugtools = loadLua(flightAssistantScriptDir .. 'debugtools.lua')
+flightAssistantCore.actions = loadLua(flightAssistantScriptDir .. 'actions.lua', nil, flightAssistantCore)
 
-local pUnitLib = requireLib(pUnitLibName, flightAssistantScriptDir .. pUnitLibName .. '.lua')
+local extensionsLib = loadLua(flightAssistantScriptDir .. 'extensions.lua', nil, flightAssistantCore)
+local beforePUnitActivation = extensionsLib.beforePUnitActivation
+local afterPUnitAactivation = extensionsLib.afterPUnitActivation
+local beforePUnitDeactivation = extensionsLib.beforePUnitDeactivation
+local afterPUnitDeactivation = extensionsLib.afterPUnitDeactivation
+local beforeSimulationFrame = extensionsLib.beforeSimulationFrame
+local afterSimulationFrame = extensionsLib.afterSimulationFrame
+local requireExtension = extensionsLib.requireExtension
+flightAssistantCore.extensions = {}
+flightAssistantCore.extensions.getOptionalExtension = extensionsLib.getOptionalExtension
+flightAssistantCore.extensions.requireExtension = requireExtension
+
+local pUnitLib = loadLua(flightAssistantScriptDir .. 'pUnit.lua', nil, flightAssistantCore)
 local tryLoadPUnit = pUnitLib.tryLoadPUnit
 local activatePUnit = pUnitLib.activatePUnit
 local deactivatePUnit = pUnitLib.deactivatePUnit
 local fireSimCallback = pUnitLib.fireSimCallback
-libEnv.addSimCallbackAction = pUnitLib.addSimCallbackAction
-libEnv.getOrCreateCallbackAction = pUnitLib.getOrCreateCallbackAction
+flightAssistantCore.pUnit = {}
+flightAssistantCore.pUnit.getOrCreateCallbackAction = pUnitLib.getOrCreateCallbackAction
+flightAssistantCore.pUnit.addSimCallbackAction = pUnitLib.addSimCallbackAction
 
+setmetatable(flightAssistantCore, { __index = _G })
+
+--[[------
+    --Load extensions
+--------]]
 if type(flightAssistantConfig.extensions) == 'table' then
     for _, ext in pairs(flightAssistantConfig.extensions) do
         requireExtension(ext)
     end
 end
+
+local globalns = _G
 
 --[[------
     --Assistant
@@ -442,18 +255,18 @@ local function setupAssistant(assistantName, configTable)
 
     local assistantSelf = {
         name = assistantName,
-        id = getTrimmedTableId(faCallbacks) .. ':' .. assistantCounter(),
+        id = flightAssistantCore.tools.getTrimmedTableId(faCallbacks) .. ':' .. assistantCounter(),
         --playerUnitScriptsDir is for testing purposes
         assistantDir = flightAssistantConfig.playerUnitScriptsDir or (flightAssistantScriptDir .. sgsub(assistantName, '%s+', '_') .. '\\'),
         pUnitFallbackTable = configTable.pUnitFallbackTable or {},
         pUnits = {},
-        isSimulationPaused = isSimulationPaused,
+        isSimulationPaused = flightAssistantCore.simulation.isPaused,
         reloadOnMissionLoad = configTable.reloadOnMissionLoad,
         debugUnit = isDebugEnabled or isDebugUnitEnabled or configTable.debugUnit and true or false,
         pUnitConfig = configTable.unitConfig or {}
     }
 
-    callExtensionFunctions(INIT_ASSISTANT, assistantSelf, configTable)
+    extensionsLib.initAssistant(assistantSelf, configTable)
 
     setfenv(1, assistantSelf)
 
@@ -474,11 +287,11 @@ local function setupAssistant(assistantName, configTable)
     --------]]
     function deactivateActivePUnit()
         if activePUnit then
-            callExtensionFunctions(BEFORE_PUNIT_DEACTIVATION, activePUnit)
+            beforePUnitDeactivation(activePUnit)
             deactivatePUnit(activePUnit)
-            callExtensionFunctions(AFTER_PUNIT_DEACTIVATION, activePUnit)
+            afterPUnitDeactivation(activePUnit)
             activePUnit.proxy.selfData = nil
-            fmtInfo('[%s] PUnit %s deactivated', assistantName, activePUnit.name)
+            lwrite(logSubsystemName, lINFO, sformat('[%s] PUnit %s deactivated', assistantName, activePUnit.name))
             activePUnit = nil
         end
         activePUnitName = nil
@@ -490,9 +303,9 @@ local function setupAssistant(assistantName, configTable)
         if not pUnitTable then
             while not pUnitTable do
                 if isDebugEnabled then
-                    fmtInfo('[%s] Searching for %s.lua', assistantName, alias)
+                    lwrite(logSubsystemName, lINFO, sformat('[%s] Searching for %s.lua', assistantName, alias))
                 end
-                pUnitTable = tryLoadPUnit(assistantSelf, alias, extensions[INIT_PUNIT])
+                pUnitTable = tryLoadPUnit(assistantSelf, alias, extensionsLib.initPUnit)
                 if pUnitTable then
                     pUnits[alias] = pUnitTable
                 else
@@ -523,10 +336,10 @@ local function setupAssistant(assistantName, configTable)
                 activePUnit = findPUnitTable(activePUnitName)
                 if activePUnit then
                     activePUnit.proxy.selfData = currentPUnitData
-                    callExtensionFunctions(BEFORE_PUNIT_ACTIVATION, activePUnit)
+                    beforePUnitActivation(activePUnit)
                     activatePUnit(activePUnit)
-                    callExtensionFunctions(AFTER_PUNIT_ACTIVATION, activePUnit)
-                    fmtInfo('[%s] PUnit %s activated', assistantName, activePUnit.name)
+                    afterPUnitAactivation(activePUnit)
+                    lwrite(logSubsystemName, lINFO, sformat('[%s] PUnit %s activated', assistantName, activePUnit.name))
                 end
             end
         elseif activePUnit then
@@ -539,7 +352,7 @@ local function setupAssistant(assistantName, configTable)
     --------]]
     function onMissionLoadBegin()
         if reloadOnMissionLoad then
-            fmtInfo('[%s] Reloading pUnits', assistantName)
+            lwrite(logSubsystemName, lINFO, sformat('[%s] Reloading pUnits', assistantName))
             pUnits = {}
         end
     end
@@ -565,9 +378,9 @@ local function setupAssistant(assistantName, configTable)
         if simulationActive then
             tryActivatePUnit()
             if activePUnit then
-                callExtensionFunctions(BEFORE_SIMULATION_FRAME, activePUnit)
+                beforeSimulationFrame(activePUnit)
                 fireSimCallback(activePUnit, 'onSimulationFrame')
-                callExtensionFunctions(AFTER_SIMULATION_FRAME, activePUnit)
+                afterSimulationFrame(activePUnit)
             end
         end
     end
@@ -590,7 +403,7 @@ local function setupAssistant(assistantName, configTable)
     end
     FlightAssistant[assistantName] = { name = assistantName, id = assistantSelf.id }
 
-    fmtInfo('[%s] FlightAssistant created', assistantName)
+    lwrite(logSubsystemName, lINFO, sformat('[%s] FlightAssistant created', assistantName))
 end
 
 if type(flightAssistantConfig.flightAssistants) == 'table' and sfind(enableDCSEnvs, dcsEnv) then
@@ -598,7 +411,7 @@ if type(flightAssistantConfig.flightAssistants) == 'table' and sfind(enableDCSEn
         if type(cfg) == 'table' then
             if sfind(cfg.dcsEnvs or ENV_DCS_CONTROL_API, dcsEnv) then
                 if type(cfg.requiredExtensions) == 'table' then
-                    fmtInfo('[%s] Loading required extensions', name)
+                    lwrite(logSubsystemName, lINFO, sformat('[%s] Loading required extensions', name))
                     for _, ext in pairs(cfg.requiredExtensions) do
                         requireExtension(ext)
                     end

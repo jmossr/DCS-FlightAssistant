@@ -2,22 +2,22 @@
     --FlightAssistant
     --Signals, Signal groups and Signal sequences
 --------]]
+local flightAssistantCore = ...
 local tinsert = table.insert
 local type = type
 local error = error
 local osclock = os.clock
 local pairs = pairs
 local sformat = string.format
-local flightAssistant = getfenv(1)
-local builderLib = flightAssistant.requireExtension('builder')
+local builderLib = flightAssistantCore.extensions.requireExtension('builder')
 local createBuilder = builderLib.createBuilder
-local isDebugEnabled = flightAssistant.isDebugEnabled
-local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
-local fire = flightAssistant.fire
-local fmtInfo = flightAssistant.fmtInfo
-local fmtWarning = flightAssistant.fmtWarning
-local indexOf = flightAssistant.indexOf
-local listAddOnce = flightAssistant.listAddOnce
+local isDebugEnabled = flightAssistantCore.config.isDebugEnabled
+local isDebugUnitEnabled = flightAssistantCore.config.isDebugUnitEnabled
+local fire = flightAssistantCore.actions.fire
+local fmtInfo = flightAssistantCore.logger.fmtInfo
+local fmtWarning = flightAssistantCore.logger.fmtWarning
+local indexOf = flightAssistantCore.tools.indexOf
+local listAddOnce = flightAssistantCore.tools.listAddOnce
 
 --[[------
     --Signal

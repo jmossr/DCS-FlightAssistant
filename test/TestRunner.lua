@@ -265,6 +265,7 @@ function setupFlightAssistant(config, selfData, withLogEvents, inLuaExportEnv)
         expect('WARNING  FLIGHTASSISTANT(E) (main): net.dostring_in function is not available')
     end
     if withLogEvents then
+        addSkippableEvent('Registering extension function')
         expect('[Test] FlightAssistant created')
     end
     if inLuaExportEnv then

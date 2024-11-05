@@ -1,19 +1,18 @@
-local flightAssistant = getfenv(1)
-local fire = flightAssistant.fire
-local getTrimmedTableId = flightAssistant.getTrimmedTableId
-local fmtError = flightAssistant.fmtError
-local fmtWarning = flightAssistant.fmtWarning
-local fmtInfo = flightAssistant.fmtInfo
-local isDebugEnabled = flightAssistant.isDebugEnabled
-local NOOP = flightAssistant.NOOP
-local printTable = flightAssistant.printTable
+local flightAssistantCore = ...
+local fire = flightAssistantCore.actions.fire
+local getTrimmedTableId = flightAssistantCore.tools.getTrimmedTableId
+local fmtError = flightAssistantCore.logger.fmtError
+local fmtWarning = flightAssistantCore.logger.fmtWarning
+local fmtInfo = flightAssistantCore.logger.fmtInfo
+local isDebugEnabled = flightAssistantCore.config.isDebugEnabled
+local NOOP = flightAssistantCore.tools.NOOP
+local printTable = flightAssistantCore.logger.printTable
 local tinsert = table.insert
 local tostring = tostring
 local pcall = pcall
 local loadfile = loadfile
 local type = type
 local error = error
-local pairs = pairs
 local setmetatable = setmetatable
 local unpack = unpack
 local setfenv = setfenv
@@ -74,7 +73,7 @@ local function deactivatePUnit(pUnit)
     fireSimCallback(pUnit, 'onUnitDeactivating')
 end
 
-local function tryLoadPUnit(assistant, name, initPUnitExtensions)
+local function tryLoadPUnit(assistant, name, initPUnit)
     local assistantName = assistant.name
     local path = assistant.assistantDir .. name .. '.lua'
     local f, err = loadfile(path)
@@ -101,10 +100,10 @@ local function tryLoadPUnit(assistant, name, initPUnitExtensions)
                     fmtWarning('[%s][%s] ' .. msg, assistantName, name, unpack(arg))
                 end,
                 info = function(msg, ...)
-                    fmtInfo('[%s][%s] '..msg, assistantName, name, unpack(arg))
+                    fmtInfo('[%s][%s] ' .. msg, assistantName, name, unpack(arg))
                 end,
                 debug = assistant.debugUnit and function(msg, ...)
-                    fmtInfo('[%s][%s] '..msg, assistantName, name, unpack(arg))
+                    fmtInfo('[%s][%s] ' .. msg, assistantName, name, unpack(arg))
                 end or NOOP,
             },
             printTable = printTable,
@@ -132,10 +131,8 @@ local function tryLoadPUnit(assistant, name, initPUnitExtensions)
         proxy.include = function(libName, ...)
             assistant.include(libName, proxy, unpack(arg))
         end
-        if type(initPUnitExtensions) == 'table' then
-            for _, initPUnit in pairs(initPUnitExtensions) do
-                initPUnit(pUnit, proxy)
-            end
+        if initPUnit then
+            initPUnit(pUnit, proxy)
         end
 
         setmetatable(proxy, { __index = _G })

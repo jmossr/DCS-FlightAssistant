@@ -26,16 +26,16 @@
      <onSomeEvent>.schedule(delay [, period [, maxCalls]]).<someOtherAction>
 
 --------]=]
+local flightAssistantCore = ...
 local tostring = tostring
 local tinsert = table.insert
 local type = type
 local getTime = LoGetModelTime or Export.LoGetModelTime
-local flightAssistant = getfenv(1)
-local isDebugUnitEnabled = flightAssistant.isDebugUnitEnabled
-local getOptionalExtension = flightAssistant.getOptionalExtension
-local getOrCreateCallbackAction = flightAssistant.getOrCreateCallbackAction
-local checkArgType = flightAssistant.checkArgType
-local checkPositiveNumberArg = flightAssistant.checkPositiveNumberArg
+local isDebugUnitEnabled = flightAssistantCore.config.isDebugUnitEnabled
+local getOptionalExtension = flightAssistantCore.extensions.getOptionalExtension
+local getOrCreateCallbackAction = flightAssistantCore.pUnit.getOrCreateCallbackAction
+local checkArgType = flightAssistantCore.debugtools.checkArgType
+local checkPositiveNumberArg = flightAssistantCore.debugtools.checkPositiveNumberArg
 
 local function runScheduledAction(scheduledAction, time)
     local action = scheduledAction.action
