@@ -8,7 +8,7 @@ Folder Saved Games\DCS\Scripts\Hooks should contain
 FlightAssistantLoader.lua and maybe more files from other mods.
 
 
-### Engaging The Autopilot
+### Engaging The Autopilot — SCR-522 radio (US/UK aircraft)
 The autopilot can be engaged or disengaged by pressing a specific
 sequence of buttons on the Radio Control Panel.
 After pressing a sequence to command the autopilot, the radio can
@@ -16,9 +16,23 @@ be switched to any channel again.
 
 - To engage level flight, press: *channel D, channel C, channel B*
 - To engage alt and bank angle hold, press: *channel D, channel C, channel A*
+- To engage alt and heading hold, press: *channel D, channel A, channel B*
 - To disengage, press: *channel D, channel C, channel D*
 - Pressing the radio 'off' button will also disengage the autopilot
 
 All sequences start with channel D. If channel D is active before you want to
 command the autopilot, you must first switch to another channel to be able to
 start the sequence with channel D.
+
+Heading hold also commands the rudder to null sideslip; the other modes leave
+rudder to the pilot.
+
+### Engaging The Autopilot — FuG 16ZY radio (German aircraft)
+The Bf 109 K-4, FW 190 A8 and FW 190 D9 use the FuG 16ZY, a 4-position rotary
+selector (I/II/III/IV) rather than separate buttons. Turn the knob through
+the following adjacent steps within 2.5 seconds:
+
+- To engage heading hold, turn: *I -> II -> I*
+- To engage level flight, turn: *I -> II -> III*
+- To engage alt and bank angle hold, turn: *IV -> III -> II*
+- To disengage, turn: *IV -> III -> IV*
