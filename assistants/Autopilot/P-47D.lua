@@ -6,8 +6,12 @@ include("setupSCR522ARadioAutopilotSequences")
 local pitchControl = createPitchSpeedOverrideControl(createPDiController(3, 0.3, 0.1, 0.15, -1, 1, 3), 70)
 local bankControl = createPDiController(1, 0.3, 0.5, 0.3, -1, 1, 3)
 local altitudeControl = createPDiController(0.005, 0.015, 0.001, 2, -0.1, 0.3, 0.05)
+local headingControl = createPDiController(2.5, 0.8, 0.1, 0.2, -0.4, 0.4, 0.1)
 
-include("setupSCR522ARadioControlledAutoPilot", altitudeControl, pitchControl, bankControl)
+-- Simple rudder controller for sideslip nulling (only active in Heading mode)
+local rudderControl = createPDiController(1.5, 0.4, 0.05, 0.3, -0.3, 0.3, 0.15)
+
+include("setupSCR522ARadioControlledAutopilot", altitudeControl, pitchControl, bankControl, headingControl, rudderControl)
 
 onCommand(23, 3001).fireSignal('A/P_OFF')
 onCommand(23, 3002).fireSignal('RADIO_A')
