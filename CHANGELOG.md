@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 2.0 - 2026-08-19
+
+### Merged
+- Consolidated with `FlightAssistant_1.9`, a separately deployed and locally-patched fork of an
+  earlier vendored snapshot of this project (maintained in a private repo, not derived from this
+  one's git history) — that fork is now retired in favor of this repo as the single source. Before
+  retiring it, brought over what wasn't here yet: the stall-protection reset fix below (originally
+  diagnosed and fixed in that fork 2026-07-27, predating this repo's `core`/`extensions`
+  reorganization), and two files with no counterpart here — `SeatDetector_Test.lua` +
+  `SeatDetector_NOTES.md`, design notes for pivoting autopilot engage/disengage to a mission-flag
+  trigger instead of a radio-knob sequence (not yet implemented). A third file found in that fork,
+  `me_coords_magvar.go`, turned out to be an unrelated stray duplicate of a file from a different
+  project and was not carried over.
+
 ### Added
 - Level Heading autopilot mode (`A/P_LVL_HDG`): holds altitude and heading, and commands the
   rudder to null sideslip. Sideslip is computed from consecutive `Position` samples
