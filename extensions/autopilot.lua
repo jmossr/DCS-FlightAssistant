@@ -79,10 +79,17 @@ local function createPitchSpeedOverrideControl(pitchControl, minimumSpeed, maxPi
         baseControl.setTarget(targetPitch)
         return baseControl.process(pitch, deltaTime)
     end
+    local function reset()
+        overrideActive = nil
+        referencePitch = nil
+        vvReferencePitch = nil
+        targetPitch = nil
+        baseControl.reset()
+    end
     return {
         process = process,
         setTarget = setTarget,
-        reset = baseControl.reset
+        reset = reset
     }
 end
 local function createAutopilot(minSampleTime, altitudeControl, pitchControl, bankControl, headingControl, rudderControl)
