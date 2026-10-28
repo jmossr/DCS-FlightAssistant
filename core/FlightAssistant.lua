@@ -14,6 +14,7 @@ local tinsert = table.insert
 local loadfile = loadfile
 local pcall = pcall
 local error = error
+local setmetatable = setmetatable
 local flightAssistantConfig = ...
 local config = (flightAssistantConfig and type(flightAssistantConfig) == 'table') and flightAssistantConfig or nil
 local isReloadUserScriptsOnMissionLoad = not config or config.reloadUserScriptsOnMissionLoad
@@ -37,59 +38,79 @@ end
 --[[------
     --Install DCS callbacks
 --------]]
+local CB_BEFORE_RELOAD_USER_SCRIPTS = 'beforeReloadUserScripts'
+local CB_ON_MISSION_LOAD_BEGIN = 'onMissionLoadBegin'
+local CB_ON_SIMULATION_START = 'onSimulationStart'
+local CB_ON_SIMULATION_STOP = 'onSimulationStop'
+local CB_ON_SIMULATION_FRAME = 'onSimulationFrame'
+local CB_ON_SIMULATION_PAUSE = 'onSimulationPause'
+local CB_ON_SIMULATION_RESUME = 'onSimulationResume'
+local callbackNames = {
+    CB_BEFORE_RELOAD_USER_SCRIPTS = CB_BEFORE_RELOAD_USER_SCRIPTS,
+    CB_ON_MISSION_LOAD_BEGIN = CB_ON_MISSION_LOAD_BEGIN,
+    CB_ON_SIMULATION_START = CB_ON_SIMULATION_START,
+    CB_ON_SIMULATION_STOP = CB_ON_SIMULATION_STOP,
+    CB_ON_SIMULATION_FRAME = CB_ON_SIMULATION_FRAME,
+    CB_ON_SIMULATION_PAUSE = CB_ON_SIMULATION_PAUSE,
+    CB_ON_SIMULATION_RESUME = CB_ON_SIMULATION_RESUME
+}
 local dcsEnv
-local faCallbacks = {}
+local callbackRegistry = {}
 local simulationActive = false
 local simulationPaused = true
 local currentPUnitData
 do
     local executeCallbacks = function(cb)
-        for _, cbs in pairs(faCallbacks) do
-            cbs[cb]()
+        if callbackRegistry[cb] then
+            for _, cbf in pairs(callbackRegistry[cb]) do
+                cbf()
+            end
         end
+    end
+    local onSimulationPause = function()
+        simulationPaused = true
+        executeCallbacks(CB_ON_SIMULATION_PAUSE);
+    end
+    local onSimulationResume = function()
+        simulationPaused = false
+        if simulationActive then
+            currentPUnitData = LoGetSelfData()
+        end
+        executeCallbacks(CB_ON_SIMULATION_RESUME);
     end
     local callbacks = {
         onMissionLoadBegin = function()
             simulationPaused = true
             simulationActive = false
             if isReloadUserScriptsOnMissionLoad then
-                FlightAssistant = nil
-                clearTable(faCallbacks)
+                executeCallbacks(CB_BEFORE_RELOAD_USER_SCRIPTS);
+                clearTable(callbackRegistry)
                 if DCS then
                     lwrite(logSubsystemName, lINFO, 'Reloading user scripts...')
                     DCS.reloadUserScripts()
                 end
             end
-            executeCallbacks('onMissionLoadBegin');
+            executeCallbacks(CB_ON_MISSION_LOAD_BEGIN);
         end,
         onSimulationStart = function()
             simulationPaused = true
             simulationActive = true
             currentPUnitData = LoGetSelfData()
-            executeCallbacks('onSimulationStart');
+            executeCallbacks(CB_ON_SIMULATION_START);
         end,
         onSimulationStop = function()
             simulationActive = false
             currentPUnitData = nil
-            executeCallbacks('onSimulationStop');
+            executeCallbacks(CB_ON_SIMULATION_STOP);
         end,
         onSimulationFrame = function()
             if simulationActive then
                 currentPUnitData = LoGetSelfData()
             end
-            executeCallbacks('onSimulationFrame');
+            executeCallbacks(CB_ON_SIMULATION_FRAME);
         end,
-        onSimulationPause = function()
-            simulationPaused = true
-            executeCallbacks('onSimulationPause');
-        end,
-        onSimulationResume = function()
-            simulationPaused = false
-            if simulationActive then
-                currentPUnitData = LoGetSelfData()
-            end
-            executeCallbacks('onSimulationResume');
-        end
+        onSimulationPause = onSimulationPause,
+        onSimulationResume = onSimulationResume
     }
     if DCS then
         dcsEnv = ENV_DCS_CONTROL_API
@@ -160,6 +181,24 @@ if isDebugEnabled then
 end
 
 --[[------
+    -- registerCallbacks
+------]]--
+local function registerCallbacks(cbs)
+    if type(cbs) == 'table' then
+        for _, n in pairs(callbackNames) do
+            if cbs[n] then
+                if not callbackRegistry[n] then
+                    callbackRegistry[n] = {}
+                end
+                tinsert(callbackRegistry[n], cbs[n])
+            end
+        end
+    else
+        error('registerCallbacks \'callbacks\' must be a table, not a ' .. type(cbs), 2)
+    end
+end
+
+--[[------
     -- loadLua
 ------]]--
 local function loadLua(path, env, ...)
@@ -202,7 +241,7 @@ flightAssistantCore.actions = loadLua(flightAssistantScriptDir .. 'actions.lua',
 
 local extensionsLib = loadLua(flightAssistantScriptDir .. 'extensions.lua', nil, flightAssistantCore)
 local beforePUnitActivation = extensionsLib.beforePUnitActivation
-local afterPUnitAactivation = extensionsLib.afterPUnitActivation
+local afterPUnitActivation = extensionsLib.afterPUnitActivation
 local beforePUnitDeactivation = extensionsLib.beforePUnitDeactivation
 local afterPUnitDeactivation = extensionsLib.afterPUnitDeactivation
 local beforeSimulationFrame = extensionsLib.beforeSimulationFrame
@@ -255,7 +294,7 @@ local function setupAssistant(assistantName, configTable)
 
     local assistantSelf = {
         name = assistantName,
-        id = flightAssistantCore.tools.getTrimmedTableId(faCallbacks) .. ':' .. assistantCounter(),
+        id = flightAssistantCore.tools.getTrimmedTableId(callbackRegistry) .. ':' .. assistantCounter(),
         --playerUnitScriptsDir is for testing purposes
         assistantDir = flightAssistantConfig.playerUnitScriptsDir or (flightAssistantScriptDir .. sgsub(assistantName, '%s+', '_') .. '\\'),
         pUnitFallbackTable = configTable.pUnitFallbackTable or {},
@@ -338,7 +377,7 @@ local function setupAssistant(assistantName, configTable)
                     activePUnit.proxy.selfData = currentPUnitData
                     beforePUnitActivation(activePUnit)
                     activatePUnit(activePUnit)
-                    afterPUnitAactivation(activePUnit)
+                    afterPUnitActivation(activePUnit)
                     lwrite(logSubsystemName, lINFO, sformat('[%s] PUnit %s activated', assistantName, activePUnit.name))
                 end
             end
@@ -388,7 +427,8 @@ local function setupAssistant(assistantName, configTable)
     --[[------
         Register Assistant
     --------]]
-    tinsert(faCallbacks, {
+    registerCallbacks({
+        beforeReloadUserScripts = function() globalns.FlightAssistant = nil  end,
         onMissionLoadBegin = onMissionLoadBegin,
         onSimulationStart = onSimulationStart,
         onSimulationStop = onSimulationStop,
