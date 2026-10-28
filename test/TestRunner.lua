@@ -282,6 +282,9 @@ function setupFlightAssistant(config, selfData, withLogEvents, inLuaExportEnv)
         if withLogEvents then
             expect('activated')
         end
+        if withDebugEvents then
+            expect('multiplayer')
+        end
     end
     startFlightAssistant(config, inLuaExportEnv)
     fireUserCallback('onSimulationStart')

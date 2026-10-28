@@ -9,7 +9,7 @@ local bankControl = createPDiController(3, 0.4, 0.5, 0.3, -1, 1, 3)
 local altitudeControl = createPDiController(0.002, 0.015, 0.001, 2, -0.1, 0.2, 0.05)
 local headingControl = createPDiController(0.5, 0.4, 0.05, 0.2, -0.12, 0.12, 0.04)
 local rudderControl = createPDiController(1.5, 0.05, 0.02, 0.3, -0.3, 0.3, 0.15)
-include("setupSCR522ARadioControlledAutopilot", altitudeControl, pitchControl, bankControl, headingControl, rudderControl)
+include("setupRadioControlledAutopilot", altitudeControl, pitchControl, bankControl, headingControl, rudderControl)
 
 -- FuG 16ZY radio channel selector: 4 positions I/II/III/IV (arg 128, values 0.0/0.1/0.2/0.3)
 -- Upward transitions

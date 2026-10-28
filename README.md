@@ -58,5 +58,17 @@ the following adjacent steps within 2.5 seconds:
 - To engage alt and bank angle hold, turn: *IV → III → II*
 - To disengage, turn: *IV → III → IV*
 
-## Known Issues
-- Autopilot only works in single player mode because DCS does not allow to take control in multiplayer mode.
+### F4U-1D Corsair
+Uses the C-30A radio channel knob with the same sequences as the FuG16ZY
+(Axis section above), with knob position 1 = I through position 4 = IV.
+
+### I-16 and La-7
+These have no radio channel panel, so four cockpit controls stand in for
+channels A-D and the Allied SCR522A sequences apply (D,C,B / D,C,A / D,C,D / D,A,B).
+Flipping a switch in either direction counts as one press.
+
+    aircraft     A                     B                     C                         D
+    I-16:      Clock heat switch     Pitot heat switch     Nav light test button     Radio switch
+    La-7:      Pitot heat switch     Gear signal switch    Voltmeter button          Fuelmeter switch
+
+I-16: Clock heat, pitot heat and radio switches are not simulated, so flipping them is harmless.

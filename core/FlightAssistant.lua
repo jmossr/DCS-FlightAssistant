@@ -24,8 +24,12 @@ local lwrite = log.write
 local lINFO = log.INFO
 local lWARNING = log.WARNING
 local LoGetSelfData = LoGetSelfData or Export and Export.LoGetSelfData or nil
+local LoIsOwnshipExportAllowed = LoIsOwnshipExportAllowed or Export and Export.LoIsOwnshipExportAllowed or nil
+local LoGetNetIsRunning = LoGetNetIsRunning or Export and Export.LoGetNetIsRunning or nil
+local LoGetPlayerSeat = LoGetPlayerSeat or Export and Export.LoGetPlayerSeat or nil
 local setfenv = setfenv
 local unpack = unpack
+local DCSgetPause = DCS and DCS.getPause or nil
 
 local function clearTable(table)
     if type(table) == 'table' then
@@ -104,6 +108,18 @@ do
             executeCallbacks(CB_ON_SIMULATION_STOP);
         end,
         onSimulationFrame = function()
+            -- A multiplayer client never receives onSimulationResume after joining, so the
+            -- pause state set by onSimulationStart would stick. Read the real state instead.
+            if DCSgetPause then
+                local paused = DCSgetPause() and true or false
+                if paused ~= simulationPaused then
+                    if paused then
+                        onSimulationPause()
+                    else
+                        onSimulationResume()
+                    end
+                end
+            end
             if simulationActive then
                 currentPUnitData = LoGetSelfData()
             end
@@ -379,6 +395,12 @@ local function setupAssistant(assistantName, configTable)
                     activatePUnit(activePUnit)
                     afterPUnitActivation(activePUnit)
                     lwrite(logSubsystemName, lINFO, sformat('[%s] PUnit %s activated', assistantName, activePUnit.name))
+                    if isDebugEnabled then
+                        local okNet, netRunning = pcall(LoGetNetIsRunning)
+                        local okSeat, seat = pcall(LoGetPlayerSeat)
+                        lwrite(logSubsystemName, lINFO, sformat('[%s] multiplayer=%s seat=%s ownshipExport=%s', assistantName,
+                            tostring(okNet and netRunning), tostring(okSeat and seat), tostring(LoIsOwnshipExportAllowed())))
+                    end
                 end
             end
         elseif activePUnit then

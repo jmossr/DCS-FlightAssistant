@@ -326,6 +326,26 @@ if isDebugUnitEnabled then
 end
 
 --[[------
+    --In multiplayer, shows text as a system chat message on this client only (net.recv_chat).
+    --The 'server' and 'mission' states used by outTextForUnit are not reachable from a
+    --multiplayer client. Returns false in single player, where outTextForUnit works.
+------]]--
+local isMultiplayer = DCS and DCS.isMultiplayer or nil
+local recvChat = net and net.recv_chat or nil
+local outTextLocalFailureLogged
+local function outTextLocal(text)
+    if not (isMultiplayer and recvChat and isMultiplayer()) then
+        return false
+    end
+    local ok, err = pcall(recvChat, text, 0)
+    if not ok and not outTextLocalFailureLogged then
+        outTextLocalFailureLogged = true
+        fmtWarning('net.recv_chat FAILED: %s', tostring(err or '?'))
+    end
+    return ok
+end
+
+--[[------
     --Export.GetDevice(device):get_argument_value(arg)
 ------]]--
 local function getDeviceArgumentValue(deviceId, argId)
@@ -578,6 +598,12 @@ local function initPUnit(pUnit, proxy)
         copyAll(proxyExtension, proxy)
         proxy.getMissionPlayerUnitID = getMissionPUnitID
         proxy.textToOwnShip = function(text, displayTime, clearView)
+            if isDebugEnabled then
+                fmtInfo('textToOwnShip: %s', text)
+            end
+            if outTextLocal(text) then
+                return
+            end
             local id = getMissionPUnitID()
             if id then
                 outTextForUnit(id, text, displayTime, clearView)
