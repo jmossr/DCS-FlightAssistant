@@ -74,6 +74,14 @@
         clearView : true to clear the screen of any previous messages before showing this message; default false
 
     --
+    outTextToOwnShip(text, displayTime [, clearview]) : shows a text message to the local player's unit
+        First tries to show the text as a system chat message. If successful, displayTime and clearview are ignored.
+        If that fails, outTextForUnit is called if the player's unit Id in the mission is available.
+        text    : text to display
+        displayTime : duration in seconds the text should stay visible
+        clearView : true to clear the screen of any previous messages before showing this message; default false
+
+    --
     getDeviceArgumentValue(device, arg) : shorthand for Export.GetDevice(device):get_argument_value(arg)
 
 
@@ -85,6 +93,7 @@
     <onSomeEvent>.performClickableAction(device, command [, value])
     <onSomeEvent>.outTextForUnit(unitId, text, displayTime [, clearView])
     <onSomeEvent>.outText(text, displayTime [, clearView])
+    <onSomeEvent>.outTextToOwnShip(text, displayTime [, clearView])
 
     onDeviceArgument(device, arg).valueChanged().<someAction>
                         executes an action every time the value for a device argument changes
@@ -326,23 +335,37 @@ if isDebugUnitEnabled then
 end
 
 --[[------
-    --In multiplayer, shows text as a system chat message on this client only (net.recv_chat).
-    --The 'server' and 'mission' states used by outTextForUnit are not reachable from a
-    --multiplayer client. Returns false in single player, where outTextForUnit works.
+    --trigger.action.outTextToOwnShip(text, displayDuration, clearView)
 ------]]--
-local isMultiplayer = DCS and DCS.isMultiplayer or nil
+--[[------
+    --Shows text as a system chat message on this client only if the function net.recv_chat is available.
+    --Otherwise tries to call 'outTextForUnit', available in 'server' or 'mission' env.
+    --'server' or 'mission' env. are not reachable from a multiplayer client.
+------]]--
 local recvChat = net and net.recv_chat or nil
-local outTextLocalFailureLogged
-local function outTextLocal(text)
-    if not (isMultiplayer and recvChat and isMultiplayer()) then
-        return false
+local function outTextToOwnShip(text, displayTime, clearView)
+    if recvChat then
+        local ok, err = pcall(recvChat, text, 0)
+        if ok then
+            return ok
+        else
+            fmtWarning('net.recv_chat FAILED: %s', tostring(err or '?'))
+        end
     end
-    local ok, err = pcall(recvChat, text, 0)
-    if not ok and not outTextLocalFailureLogged then
-        outTextLocalFailureLogged = true
-        fmtWarning('net.recv_chat FAILED: %s', tostring(err or '?'))
+    local id = getMissionPlayerUnitID()
+    if id then
+        return outTextForUnit(id, text, displayTime, clearView)
     end
-    return ok
+    return false
+end
+
+local poutTextToOwnShip
+if isDebugUnitEnabled then
+    poutTextToOwnShip = function(text, displayTime, clearView)
+        checkArgType('outTextToOwnShip(text, displayTime, clearView)', 'text', text, 'string', true, 2)
+        checkPositiveNumberArg('outTextToOwnShip(text, displayTime, clearView)', 'displayTime', displayTime, false, 2)
+        return outTextToOwnShip(text, displayTime, clearView)
+    end
 end
 
 --[[------
@@ -579,6 +602,7 @@ local proxyExtension = {
     performClickableCommand = pperformClickableAction or performClickableAction, --backwards compat.
     outTextForUnit = poutTextForUnit or outTextForUnit,
     outText = poutText or outText,
+    outTextToOwnShip = poutTextToOwnShip or outTextToOwnShip,
     getDeviceArgumentValue = pgetDeviceArgumentValue or getDeviceArgumentValue,
     listCockpitParams = listCockpitParams,
     listIndication = plistIndication or listIndication,
@@ -601,13 +625,7 @@ local function initPUnit(pUnit, proxy)
             if isDebugEnabled then
                 fmtInfo('textToOwnShip: %s', text)
             end
-            if outTextLocal(text) then
-                return
-            end
-            local id = getMissionPUnitID()
-            if id then
-                outTextForUnit(id, text, displayTime, clearView)
-            end
+            outTextToOwnShip(text, displayTime, clearView)
         end
         if builderLib then
             local createValueInspectionBuilder = builderLib.createValueInspectionBuilder

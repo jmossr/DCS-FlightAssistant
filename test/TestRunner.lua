@@ -133,13 +133,16 @@ log.write = function(logSubsystemName, level, msg)
 end
 
 local userCallbacks
-local DCSTable = { setUserCallbacks = 1, reloadUserScripts = 2 }
+local DCSTable = { setUserCallbacks = 1, reloadUserScripts = 2, getPause = 3 }
 DCSTable.setUserCallbacks = function(callbacks)
     checkEvent("DCS.setUserCallbacks")
     userCallbacks = callbacks
 end
 DCSTable.reloadUserScripts = function()
     checkEvent("DCS.reloadUserScripts")
+end
+DCSTable.getPauseFunction = function()
+    return checkEvent("DCS.getPause")
 end
 
 local ExportTable = { LoGetSelfData = 1, GetDevice = 2 }
@@ -171,9 +174,14 @@ end
 ExportEnv.a_cockpit_perform_clickable_action = function(d, c, v)
     return checkEvent('a_cockpit_perform_clickable_action(' .. d .. ', ' .. c .. ', ' .. v .. ')')
 end
-local netTable = { dostring_in = function(env, lua)
-    return checkEvent("dostring_in(" .. env .. ', ' .. lua .. ')')
-end }
+local netTable = {
+    dostring_in = function(env, lua)
+        return checkEvent("dostring_in(" .. env .. ', ' .. lua .. ')')
+    end,
+    recv_chatFunction = function(text, n)
+        return checkEvent("net.recv_chat(" .. text .. ', ' .. tostring(n) .. ')')
+    end
+}
 local exportEnvCallbackMap = {
     onSimulationStart = 'LuaExportStart',
     onSimulationStop = 'LuaExportStop',
@@ -228,6 +236,17 @@ function startFlightAssistant(config, inLuaExportEnv)
         DCS = DCSTable;
         Export = ExportTable;
         net = netTable;
+        if config and type(config) == 'table' and not config.DCSGetPauseEnabled then
+            DCS.getPause = nil
+        else
+            DCS.getPause = DCSTable.getPauseFunction
+        end
+        if config and type(config) == 'table' and not config.NetRecvChatEnabled then
+            net.recv_chat = nil
+        else
+            net.recv_chat = netTable.recv_chatFunction
+        end
+
         for n, _ in pairs(ExportEnv) do
             _G[n] = nil
         end
@@ -310,6 +329,7 @@ end
 local testCases = {
     'InitFlightAssistantTest',
     'CallbacksTest',
+    'CallbacksWithoutSimulationResumeTest',
     'CallbacksAfterReloadTest',
     'UnitCallbacksTest',
     'UnitLoadingTest',
@@ -318,6 +338,8 @@ local testCases = {
     'DCSCallsOutTextForUnitTest',
     'DCSCallsTextToOwnShipTest',
     'DCSCallsTextToOwnShipActionBuilderTest',
+    'DCSCallsTextToOwnShipNetRecvChatTest',
+    'DCSCallsTextToOwnShipNetRecvChatActionBuilderTest',
     'DCSCallsStartListenCommandTest',
     'DCSCallsPerformClickableActionTest',
     'DCSCallsValueAboveBuilderTest',

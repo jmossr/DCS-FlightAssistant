@@ -1,5 +1,6 @@
 local config = {
     debug = false,
+    DCSGetPauseEnabled = true
 }
 
 local selfData = { Name = 'TestUnit' }
@@ -18,6 +19,7 @@ return { test = function()
     fireUserCallback('onSimulationStart')
     checkEvents('C')
 
+    expect('DCS.getPause').andReturn(true)
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationFrame').andRaiseError('evil')
     fireUserCallback('onSimulationFrame')
@@ -36,6 +38,7 @@ return { test = function()
     fireUserCallback('onSimulationStart')
     checkEvents('G')
 
+    expect('DCS.getPause').andReturn(true)
     expect('Export.LoGetSelfData').andReturn(selfData)
     fireUserCallback('onSimulationFrame')
     checkEvents('H')
@@ -53,6 +56,7 @@ return { test = function()
     fireUserCallback('onSimulationStart')
     checkEvents('C2')
 
+    expect('DCS.getPause').andReturn(true)
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationFrame').andRaiseError('evil')
     fireUserCallback('onSimulationFrame')
@@ -71,6 +75,7 @@ return { test = function()
     fireUserCallback('onSimulationStart')
     checkEvents('G2')
 
+    expect('DCS.getPause').andReturn(true)
     expect('Export.LoGetSelfData').andReturn(selfData)
     expect('onSimulationFrame')
     fireUserCallback('onSimulationFrame')

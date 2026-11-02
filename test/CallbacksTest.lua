@@ -1,5 +1,6 @@
 local config = {
     debug = true, --has to be true to make this test work
+    DCSGetPauseEnabled = true
 }
 
 return { test = function()
@@ -19,6 +20,7 @@ return { test = function()
     fireUserCallback('onSimulationStart')
     checkEvents('C')
 
+    expect('DCS.getPause').andReturn(true)
     expect('Export.LoGetSelfData').andReturn(nil)
     fireUserCallback('onSimulationFrame')
     checkEvents('D')
@@ -26,24 +28,26 @@ return { test = function()
     fireUserCallback('onSimulationPause')
     checkEvents('E')
 
+    expect('DCS.getPause').andReturn(true)
     expect('Export.LoGetSelfData').andReturn(nil)
     fireUserCallback('onSimulationFrame')
-    checkEvents('D')
-
-    expect('Export.LoGetSelfData').andReturn(nil)
-    fireUserCallback('onSimulationResume')
     checkEvents('F')
 
     expect('Export.LoGetSelfData').andReturn(nil)
-    fireUserCallback('onSimulationFrame')
+    fireUserCallback('onSimulationResume')
     checkEvents('G')
 
-    fireUserCallback('onSimulationStop')
+    expect('DCS.getPause').andReturn(false)
+    expect('Export.LoGetSelfData').andReturn(nil)
+    fireUserCallback('onSimulationFrame')
     checkEvents('H')
+
+    fireUserCallback('onSimulationStop')
+    checkEvents('I')
 
     log.setEventsEnabled(true)
     fireUserCallback('onMissionLoadBegin')
-    checkEvents('I')
+    checkEvents('J')
     log.setEventsEnabled(false)
 
 end }
