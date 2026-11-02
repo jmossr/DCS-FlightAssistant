@@ -338,13 +338,16 @@ end
     --trigger.action.outTextToOwnShip(text, displayDuration, clearView)
 ------]]--
 --[[------
-    --Shows text as a system chat message on this client only if the function net.recv_chat is available.
+    --In a multiplayer session, this shows text as a system chat message on this client,
+    --only if the function net.recv_chat is available.
     --Otherwise tries to call 'outTextForUnit', available in 'server' or 'mission' env.
     --'server' or 'mission' env. are not reachable from a multiplayer client.
 ------]]--
 local recvChat = net and net.recv_chat or nil
+local isMultiplayer = DCS and DCS.isMultiplayer or nil
+
 local function outTextToOwnShip(text, displayTime, clearView)
-    if recvChat then
+    if recvChat and isMultiplayer and isMultiplayer() then
         local ok, err = pcall(recvChat, text, 0)
         if ok then
             return ok

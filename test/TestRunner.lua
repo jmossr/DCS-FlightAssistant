@@ -5,6 +5,7 @@ local extensionsDir = baseDir .. 'extensions\\'
 local playerUnitScriptsDir = baseDir .. 'test\\pUnit\\'
 local debugExpectations = false
 local debugUserCallbacks = false
+local multiplayer = false;
 
 function initFlightAssistantTestConfig(config, reload, unitConfig, inLuaExportEnv)
     config.flightAssistantScriptFile = flightAssistantScriptFile
@@ -133,7 +134,7 @@ log.write = function(logSubsystemName, level, msg)
 end
 
 local userCallbacks
-local DCSTable = { setUserCallbacks = 1, reloadUserScripts = 2, getPause = 3 }
+local DCSTable = { setUserCallbacks = 1, reloadUserScripts = 2, getPause = 3, isMultiplayer = 4 }
 DCSTable.setUserCallbacks = function(callbacks)
     checkEvent("DCS.setUserCallbacks")
     userCallbacks = callbacks
@@ -143,6 +144,9 @@ DCSTable.reloadUserScripts = function()
 end
 DCSTable.getPauseFunction = function()
     return checkEvent("DCS.getPause")
+end
+DCSTable.isMultiplayer = function()
+    return multiplayer;
 end
 
 local ExportTable = { LoGetSelfData = 1, GetDevice = 2 }
@@ -251,6 +255,8 @@ function startFlightAssistant(config, inLuaExportEnv)
             _G[n] = nil
         end
     end
+
+    multiplayer = config and type(config) == 'table' and config.multiplayer and true or false
 
     local ok, r = pcall(lua, config)
     if not ok then

@@ -1,7 +1,8 @@
 local config = {
     extensions = { 'builder', 'DCS-calls' },
     debug = false,
-    NetRecvChatEnabled = true
+    NetRecvChatEnabled = true,
+    multiplayer = true
 }
 
 local selfData = { Name = 'TestUnit' }
