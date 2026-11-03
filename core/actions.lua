@@ -18,9 +18,9 @@ end
 --- Adds an action to the specified actionList
 -- @param actionList a table to which the action will be inserted using table.insert
 -- @param action an action table. An action table must at least contain a function 'fire' to activate the action.
--- @param condition an optional condition. If a condition is specified, the action will only be activated if the
---        specified condition is met. A condition is a function and when tested it will receive all arguments passed
---        to the action's fire call.
+-- @param condition an optional condition. If a condition is specified, the action will be activated everytime when the
+--        specified condition switches from being false to being true. A condition is a function and when tested it will
+--        receive all arguments passed to the action's fire call.
 local function addAction(actionList, action, condition)
     if condition then
         tinsert(actionList, { action = action, condition = condition, fire = fireConditional })
