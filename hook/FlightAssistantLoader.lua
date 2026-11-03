@@ -3,16 +3,23 @@
 
 	Place this file in 'Saved Games\DCS\Scripts\Hooks' to enable Flight Assistant.
 
-	Requires at least the following files:
+	FlightAssistant Requires at least the following files:
+	- Saved Games\DCS\Scripts\FlightAssistant\DCSPlug.lua
 	- Saved Games\DCS\Scripts\FlightAssistant\FlightAssistant.lua
+	- Saved Games\DCS\Scripts\FlightAssistant\actions.lua
+	- Saved Games\DCS\Scripts\FlightAssistant\debugtools.lua
+	- Saved Games\DCS\Scripts\FlightAssistant\extensions.lua
+	- Saved Games\DCS\Scripts\FlightAssistant\logger.lua
 	- Saved Games\DCS\Scripts\FlightAssistant\pUnit.lua
+	- Saved Games\DCS\Scripts\FlightAssistant\tools.lua
 
 ------------]]
 do
     local DEBUG = @FA_DEBUG@
     local scriptsDir = lfs.writedir() .. 'Scripts\\'
     local flightAssistantDir = scriptsDir .. 'FlightAssistant\\'
-    local scriptFile = flightAssistantDir .. 'FlightAssistant.lua'
+    local dcsPlugFile = flightAssistantDir .. 'DCSPlug.lua'
+    local flightAssistantFile = flightAssistantDir .. 'FlightAssistant.lua'
     local extensionsDirName = 'extensions'
     local extensionsDir = flightAssistantDir .. extensionsDirName .. '\\'
 
@@ -53,11 +60,7 @@ do
     local config = {
         -- General - required
         --===================--
-        flightAssistantScriptFile = scriptFile,
-
-        -- General - optional
-        --===================--
-        reloadUserScriptsOnMissionLoad = @FA_RELOAD_USER_SCRIPTS@,
+        flightAssistantScriptFile = flightAssistantFile,
 
         -- Debug FlightAssistant and player unit specific code
         debug = DEBUG,
@@ -88,16 +91,31 @@ do
         flightAssistants = collectAssistants(),
     }
 
+    local dcsPlugConfig = {
+        -- General - optional
+        --===================--
+        reloadUserScriptsOnMissionLoad = @FA_RELOAD_USER_SCRIPTS@,
+
+        -- Debug
+        debug = DEBUG,
+
+        -- System - optional
+        --===================--
+        logSubsystemName = config.logSubsystemName,
+    }
+
     --[[------
         Load
     --------]]
-    local lua, err = loadfile(scriptFile)
+    local lua, err = loadfile(dcsPlugFile)
     if not lua then
-        log.write(logSubsystemName, log.ERROR, 'Loading ' .. scriptFile .. ' FAILED: ' .. err)
+        log.write(logSubsystemName, log.ERROR, 'Loading ' .. dcsPlugFile .. ' FAILED: ' .. err)
     else
-        local ok, r = pcall(lua, config)
+        local ok, r = pcall(lua, dcsPlugConfig)
         if not ok then
-            log.write(logSubsystemName, log.ERROR, 'Executing ' .. scriptFile .. ' FAILED: ' .. r)
+            log.write(logSubsystemName, log.ERROR, 'Executing ' .. dcsPlugFile .. ' FAILED: ' .. r)
+        else
+            r.loadLua(flightAssistantFile, nil, config, r)
         end
     end
 end

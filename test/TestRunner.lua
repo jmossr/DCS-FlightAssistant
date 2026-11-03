@@ -1,5 +1,6 @@
 local baseDir = '..\\'
 local flightAssistantScriptDir = baseDir .. 'core\\'
+local dcsPlugFile = flightAssistantScriptDir .. 'DCSPlug.lua'
 local flightAssistantScriptFile = flightAssistantScriptDir .. 'FlightAssistant.lua'
 local extensionsDir = baseDir .. 'extensions\\'
 local playerUnitScriptsDir = baseDir .. 'test\\pUnit\\'
@@ -222,9 +223,17 @@ function printTable(name, t)
     end
 end
 
-local lua, err = loadfile(flightAssistantScriptFile)
-if not lua then
-    error('Loading ' .. flightAssistantScriptFile .. ' FAILED: ' .. err)
+local plugLua, err = loadfile(dcsPlugFile)
+if not plugLua then
+    error('Loading ' .. dcsPlugFile .. ' FAILED: ' .. err)
+end
+
+function initDCSPlug(config)
+    local ok, r = pcall(plugLua, config)
+    if not ok then
+        error('Initializing DCSPlug FAILED: ' .. r)
+    end
+    return r
 end
 
 function startFlightAssistant(config, inLuaExportEnv)
@@ -258,10 +267,13 @@ function startFlightAssistant(config, inLuaExportEnv)
 
     multiplayer = config and type(config) == 'table' and config.multiplayer and true or false
 
-    local ok, r = pcall(lua, config)
-    if not ok then
-        error('Starting FlightAssistant FAILED: ' .. r)
-    end
+    local dcsPlugConfig = {
+        reloadUserScriptsOnMissionLoad = (config and type(config) == 'table') and config.reloadUserScriptsOnMissionLoad or nil,
+        debug = (config and type(config) == 'table') and config.debug or nil,
+        logSubsystemName = (config and type(config) == 'table') and config.logSubsystemName or nil
+    }
+    local plug = initDCSPlug(dcsPlugConfig)
+    plug.loadLua(flightAssistantScriptFile, nil, config, plug)
 end
 
 function setupFlightAssistant(config, selfData, withLogEvents, inLuaExportEnv)
@@ -269,8 +281,8 @@ function setupFlightAssistant(config, selfData, withLogEvents, inLuaExportEnv)
     log.setEventsEnabled(withLogEvents)
     if inLuaExportEnv then
         if withLogEvents then
-            expect('WARNING  FLIGHTASSISTANT(E) (main): Cannot install DCS Control API callbacks: function DCS.setUserCallbacks not found')
-            expect('INFO     FLIGHTASSISTANT(E) (main): Installing LuaExport callbacks')
+            expect('WARNING  DCSPLUG (main): Cannot install DCS Control API callbacks: function DCS.setUserCallbacks not found')
+            expect('INFO     DCSPLUG (main): Installing LuaExport callbacks')
         end
     else
         if withLogEvents then
@@ -287,7 +299,7 @@ function setupFlightAssistant(config, selfData, withLogEvents, inLuaExportEnv)
         addSkippableEvent(': Loading file')
     end
     if inLuaExportEnv and withLogEvents then
-        expect('WARNING  FLIGHTASSISTANT(E) (main): net.dostring_in function is not available')
+        expect('WARNING  FLIGHTASSISTANT (main): net.dostring_in function is not available')
     end
     if withLogEvents then
         addSkippableEvent('Registering extension function')
@@ -350,6 +362,7 @@ local testCases = {
     'DCSCallsPerformClickableActionTest',
     'DCSCallsValueAboveBuilderTest',
     'DCSCallsValueBelowBuilderTest',
+    'DCSPlugTest',
     'UnitLoggerTest',
     'BuilderTest',
     'DCSCallsBuilderTest',
