@@ -301,6 +301,8 @@ if type(flightAssistantConfig.flightAssistants) == 'table' and sfind(enableDCSEn
                     end
                 end
                 setupAssistant(name, cfg)
+            else
+                lwrite(logSubsystemName, lINFO, sformat('[%s] Not supported in %s', name, dcsPlug.dcsEnv))
             end
         end
     end
