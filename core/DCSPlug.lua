@@ -23,7 +23,7 @@ local lWARNING = log.WARNING
 local LoGetSelfData = LoGetSelfData or Export and Export.LoGetSelfData or nil
 local setfenv = setfenv
 local unpack = unpack
-local DCSgetPause = DCS and DCS.getPause or nil
+local getPause = DCS and DCS.getPause or Export and Export.LoSimulationOnPause or LoSimulationOnPause
 
 local function clearTable(table)
     if type(table) == 'table' then
@@ -109,8 +109,8 @@ do
         onSimulationFrame = function()
             -- A multiplayer client never receives onSimulationResume after joining, so the
             -- pause state set by onSimulationStart would stick. Read the real state instead.
-            if DCSgetPause then
-                local paused = DCSgetPause() and true or false
+            if getPause then
+                local paused = getPause() and true or false
                 if paused ~= simulation.simulationPaused then
                     if paused then
                         onSimulationPause()
