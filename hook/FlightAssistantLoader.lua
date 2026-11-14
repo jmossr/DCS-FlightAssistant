@@ -70,10 +70,17 @@ do
 
         -- System - optional
         --===================--
-        logSubsystemName = 'FLIGHTASSISTANT',
+        logSubsystemName = @FA_LOG_SUBSYSTEM@,
 
         extensionsDir = extensionsDir,
 
+        --[[------
+        -- Enable loading and installing FlightAssistants only in the listed (comma separated) lua environments.
+        -- Possible environments:
+        -- 'DCS Control API' : when placing file FlightAssistantLoader.lua in Scripts/Hooks
+        -- 'LuaExport' : when editing Scripts/Export.lua to load FlightAssistant
+        --               e.g. add the following to Export.lua: local falfs=require('lfs');dofile(falfs.writedir()..'Scripts/FlightAssistant/FlightAssistantExport.lua')
+        --------]]
         enableDCSEnvs = @FA_ENABLE_ENVS@,
 
         --[[------
@@ -96,12 +103,18 @@ do
         --===================--
         reloadUserScriptsOnMissionLoad = @FA_RELOAD_USER_SCRIPTS@,
 
+        --[[------
+        -- Edit Export.lua to add the following line if it isn't there yet
+        --------]]
+        installExport = "local falfs=require('lfs');dofile(falfs.writedir()..'Scripts/FlightAssistant/FlightAssistantExport.lua')",
+
         -- Debug
         debug = DEBUG,
 
         -- System - optional
         --===================--
         logSubsystemName = config.logSubsystemName,
+        scriptsDir = scriptsDir,
     }
 
     --[[------

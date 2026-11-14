@@ -32,7 +32,6 @@
             <param name="fa.debug.unit" value="false"/>
             <param name="fa.reload.user.scripts" value="false"/>
             <param name="fa.reload.unit" value="false"/>
-            <param name="fa.enable.envs" value="'DCS Control API'"/>
         </antcall>
     </target>
 
@@ -99,7 +98,6 @@
         <property name="fa.extensions" value="'builder', 'DCS-calls'"/>
         <property name="fa.debug.unit" value="true"/>
         <property name="fa.reload.unit" value="true"/>
-        <property name="fa.enable.envs" value="'DCS Control API'"/>
 
         <echo message="fa.debug = ${fa.debug}"/>
         <echo message="fa.reload.user.scripts = ${fa.reload.user.scripts}"/>
@@ -110,7 +108,9 @@
         <filter token="FA_NAME" value="${fa.name}"/>
         <filter token="FA_DEBUG_UNIT" value="${fa.debug.unit}"/>
         <filter token="FA_RELOAD_UNIT" value="${fa.reload.unit}"/>
-        <filter token="FA_ENABLE_ENVS" value="${fa.enable.envs}"/>
+
+        <filter token="FA_ENABLE_ENVS" value="'DCS Control API'"/>
+        <filter token="FA_LOG_SUBSYSTEM" value="'FLIGHTASSISTANT'"/>
 
         <copy todir="${hooksdestdir}" filtering="true">
             <fileset dir="${hookdir}"/>
@@ -118,6 +118,10 @@
         <copy todir="${flightassistantdestdir}" filtering="true">
             <fileset dir="${hookdir}"/>
         </copy>
+
+        <filter token="FA_ENABLE_ENVS" value="'LuaExport'"/>
+        <filter token="FA_LOG_SUBSYSTEM" value="'FLIGHTASSISTANT(E)'"/>
+        <copy filtering="true" file="${hookdir}/FlightAssistantLoader.lua" tofile="${flightassistantdestdir}/FlightAssistantExport.lua"/>
     </target>
 
     <target name="copyassistant" if="fa.name" depends="initbuild">

@@ -86,6 +86,10 @@ function isSkippableEvent(eventName)
     end
     return false
 end
+function reportError(msg, level)
+    errors = errors + 1
+    error('!!! ' .. msg, level or 2)
+end
 function checkEvent(eventName, partialMatch)
     local expectation = expectations[expectationIndex]
     if expectation then
@@ -363,6 +367,7 @@ local testCases = {
     'DCSCallsValueAboveBuilderTest',
     'DCSCallsValueBelowBuilderTest',
     'DCSPlugTest',
+    'DCSPlugEditExportLuaTest',
     'UnitLoggerTest',
     'BuilderTest',
     'DCSCallsBuilderTest',
@@ -414,7 +419,7 @@ end
 
 for t, r in pairs(testResults) do
     local title = t .. ': '
-    while #title < 42 do
+    while #title < 53 do
         title = title .. (#title % 3 == 0 and '.' or ' ')
     end
     print(title .. r)
